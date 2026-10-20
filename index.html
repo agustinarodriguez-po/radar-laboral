@@ -12,7 +12,7 @@
 <section class="card" id="portales">
  <div class="row between"><div>
   <h2>Portales argentinos y latinoamericanos</h2>
-  <p class="small">Abrí búsquedas oficiales por perfil. Computrabajo, Indeed, LinkedIn y Bumeran no están conectados a la búsqueda automática: cada enlace abre el portal original para que revises los requisitos y las vacantes allí.</p>
+  <p class="small">Abrí búsquedas oficiales por perfil. Computrabajo, Indeed, LinkedIn, Bumeran, Workana y WeRemoto se abren en sus sitios oficiales: estas ofertas no se importan automáticamente. Antes de postularte, comprobá que el aviso y el trabajo estén en español, que no exija inglés y que permita trabajar desde Argentina.</p>
  </div><span class="tag warn">Búsqueda externa, no automatizada</span></div>
  <label>¿Qué puesto querés buscar?
   <select id="portalRole">
@@ -27,8 +27,10 @@
   <article class="job"><h3>Indeed Argentina</h3><p class="small">Busca publicaciones por palabra clave y modalidad; comprobá la residencia y el idioma exigidos.</p><a id="portal-indeed" class="button secondary" href="https://ar.indeed.com/jobs?q=Administrativo+remoto" target="_blank" rel="noopener noreferrer">Abrir búsqueda ↗</a></article>
   <article class="job"><h3>LinkedIn Empleos</h3><p class="small">Se abre el portal para realizar la búsqueda y aplicar tus filtros. Puede requerir iniciar sesión.</p><a id="portal-linkedin" class="button secondary" href="https://www.linkedin.com/jobs/" target="_blank" rel="noopener noreferrer">Abrir LinkedIn ↗</a></article>
   <article class="job"><h3>Bumeran Argentina</h3><p class="small">Buscador oficial de Bumeran. Aplicá filtros de provincia, modalidad y fecha dentro del portal.</p><a id="portal-bumeran" class="button secondary" href="https://www.bumeran.com.ar/" target="_blank" rel="noopener noreferrer">Abrir Bumeran ↗</a></article>
+  <article class="job"><h3>Workana</h3><p class="small">Proyectos freelance de Argentina. Seleccioná idioma <strong>español</strong> y Soporte Administrativo o la categoría relacionada con tu perfil. No son necesariamente empleos en relación de dependencia.</p><a id="portal-workana" class="button secondary" href="https://www.workana.com/es/jobs?country=AR" target="_blank" rel="noopener noreferrer">Ver proyectos en español ↗</a></article>
+  <article class="job"><h3>WeRemoto</h3><p class="small">Empleos remotos de Latinoamérica. El enlace se adapta a tu perfil; algunas publicaciones están en inglés, así que verificá el idioma de trabajo y descartá las que pidan inglés.</p><a id="portal-weremoto" class="button secondary" href="https://www.weremoto.com/categoria-de-trabajo/administrativo" target="_blank" rel="noopener noreferrer">Ver empleos remotos ↗</a></article>
  </div>
- <p class="helper">Importante: estas páginas externas pueden incluir avisos en inglés, presenciales o no compatibles. El filtro obligatorio de español de Radar Laboral se aplica únicamente a las ofertas que aparecen dentro del buscador de la aplicación, no al contenido de otros sitios.</p>
+ <p class="helper">Importante: el filtro obligatorio de español se aplica a las ofertas dentro de Radar Laboral; los sitios externos pueden publicar avisos en inglés o exigir inglés. No se considera compatible una propuesta hasta revisar su descripción original. Workana se orienta a proyectos freelance, mientras que WeRemoto publica empleos remotos.</p>
 </section>
 <div class="split"><section class="card" id="perfil"><h2>Mi perfil laboral</h2><p class="small">Solo declarar conocimientos que realmente poseas. No se agregan habilidades inventadas al CV.</p><form id="profileForm"><label>Puestos objetivo<textarea rows="3" id="roles"></textarea></label><label>Herramientas y habilidades verificables, separadas por coma<textarea rows="4" id="skills"></textarea></label><label>Condiciones laborales<textarea rows="3" id="preferences"></textarea></label>
 <label>Salario pretendido mensual ARS<input id="salary" type="number" min="0" step="10000" placeholder="1500000"></label>
@@ -97,10 +99,17 @@ const PORTAL_INDEED=Object.freeze({
  customer:'Customer Success remoto',
  soporte:'Soporte funcional remoto'
 });
+const PORTAL_WEREMOTO=Object.freeze({
+ administracion:'https://www.weremoto.com/categoria-de-trabajo/administrativo',
+ procesos:'https://www.weremoto.com/categoria-de-trabajo/administrativo',
+ customer:'https://www.weremoto.com/categoria-de-trabajo/atencion-al-cliente',
+ soporte:'https://www.weremoto.com/categoria-de-trabajo/atencion-al-cliente'
+});
 function renderPortalLinks(){
  const role=$('portalRole').value;
  $('portal-computrabajo').href=PORTAL_COMPUTRABAJO[role]||PORTAL_COMPUTRABAJO.administracion;
  $('portal-indeed').href='https://ar.indeed.com/jobs?q='+encodeURIComponent(PORTAL_INDEED[role]||PORTAL_INDEED.administracion);
+ $('portal-weremoto').href=PORTAL_WEREMOTO[role]||PORTAL_WEREMOTO.administracion;
 }
 const CV_PROFILES={
  administracion:'Administración / Back Office',
