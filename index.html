@@ -7,9 +7,10 @@
 <header><div><h1>Radar Laboral</h1><div style="opacity:.8;font-size:13px">Ofertas verificables · CV privado · Vos autorizás</div></div><div class="row"><small id="who"></small><button id="logout" class="secondary hide">Salir</button></div></header>
 <main><div id="message" class="notice hide" role="alert"></div>
 <section class="card" id="auth"><h2>Ingresar a mi radar</h2><p class="small">Si ya creaste tu cuenta y confirmaste tu correo, escribí tus datos y presioná <strong>Ingresar</strong>. Usá <strong>Crear cuenta</strong> solo la primera vez.</p><form id="loginForm"><label>Correo<input id="email" type="email" autocomplete="email" required></label><label>Contraseña<input id="password" type="password" autocomplete="current-password" minlength="8" required placeholder="Mínimo 8 caracteres"><span style="display:block;font-weight:400;margin:8px 0 16px"><input type="checkbox" id="showPassword" style="width:auto;margin-right:7px">Mostrar contraseña</span></label><div class="row"><button>Ingresar</button><button type="button" class="secondary" id="signup">Crear cuenta</button></div></form></section>
-<section id="app" class="hide"><nav class="site-nav" aria-label="Secciones del radar"><a href="#ofertas" data-screen="ofertas" class="active">⌕ Empleos para mí</a><a href="#pipeline" data-screen="pipeline">▥ Mis candidaturas</a><a href="#cvs" data-screen="cvs">▤ Mis currículums</a><a href="#perfil" data-screen="perfil">♙ Mi perfil laboral</a><a href="#automation" data-screen="automation">⚙ Automatización</a><a href="#portales" data-screen="portales">↗ Portales externos</a><a href="#historial" data-screen="historial">◷ Historial</a></nav><div class="grid" id="overview"><div class="card"><div class="small">Ofertas obtenidas</div><h2 id="total">0</h2></div><div class="card"><div class="small">Elegibilidad pendiente</div><h2 id="pending">0</h2></div><div class="card"><div class="small">Aprobaciones registradas</div><h2 id="approved">0</h2></div></div>
+<section id="app" class="hide"><nav class="site-nav" aria-label="Secciones del radar"><a href="#ofertas" data-screen="ofertas" class="active">⌕ Empleos para mí</a><a href="#guardados" data-screen="guardados">♡ Guardados</a><a href="#pipeline" data-screen="pipeline">▥ Mis candidaturas</a><a href="#cvs" data-screen="cvs">▤ Mis currículums</a><a href="#perfil" data-screen="perfil">♙ Mi perfil laboral</a><a href="#automation" data-screen="automation">⚙ Automatización</a><a href="#portales" data-screen="portales">↗ Portales externos</a><a href="#historial" data-screen="historial">◷ Historial</a></nav><div class="grid" id="overview"><div class="card"><div class="small">Ofertas obtenidas</div><h2 id="total">0</h2></div><div class="card"><div class="small">Elegibilidad pendiente</div><h2 id="pending">0</h2></div><div class="card"><div class="small">Aprobaciones registradas</div><h2 id="approved">0</h2></div></div>
 <div class="card" id="ofertas"><div class="row between"><div><h2>Ofertas laborales en español</h2><p class="small">Filtro obligatorio: solo avisos redactados principalmente en español y sin inglés obligatorio. Los anuncios en inglés o de idioma incierto quedan ocultos. Se priorizan los más recientes, sin confundir la fecha de consulta con la de publicación.</p></div><button id="scan">↻ Iniciar búsqueda de hoy</button></div><p id="lastSearch" class="helper" aria-live="polite">Todavía no se registra una búsqueda en esta sesión.</p><p id="scanStatus" class="small" aria-live="polite"></p><div class="job-explorer"><div class="filters-rail"><label>Antigüedad<select id="dateFilter"><option value="all">Todas</option><option value="24">24 horas (publicadas)</option><option value="72">72 horas (publicadas)</option><option value="168">7 días (publicadas)</option></select></label><label>Elegibilidad<select id="eligibility"><option value="viable">Para revisar (sin incompatibilidades detectadas)</option><option value="confirmed">Argentina admitida explícitamente</option><option value="pending">Ubicación pendiente</option><option value="all">Todas (incluye descartadas)</option></select></label><label>Salario<select id="salaryFilter"><option value="all">Informado o no informado</option><option value="known">Con salario publicado</option></select></label><label>Buscar<input id="searchText" placeholder="puesto, empresa..."></label><button id="resetFilters" class="secondary" type="button">Limpiar filtros</button></div><div class="results-pane"><p id="resultsSummary" class="helper" aria-live="polite">Los resultados aparecerán aquí.</p><div id="jobList" class="list"><p class="small">Iniciá una búsqueda. No se muestran ofertas de prueba.</p></div></div>
 <aside id="jobPreview" class="job-preview" aria-label="Vista rápida de la oferta"><span class="rv-kicker">Vista previa</span><p>Seleccioná una oferta para revisar su compatibilidad, guardarla o preparar la postulación.</p></aside></div></div>
+<section class="card" id="guardados"><span class="rv-kicker">TU SELECCIÓN</span><h2>Ofertas guardadas</h2><p class="rv-section-lead">Aquí quedan las oportunidades que decidiste guardar o revisar. No se envía tu CV.</p><div id="savedList" class="list" aria-live="polite"></div></section>
 <section class="card" id="pipeline">
  <div class="row between"><div><span class="rv-kicker">SEGUIMIENTO</span><h2>Mis candidaturas</h2><p class="rv-section-lead">Gestioná tus ofertas guardadas y el estado real de cada proceso. Abrir un formulario no significa que te hayas postulado.</p></div></div>
  <div class="rv-chips"><span class="rv-chip">Guardadas</span><span class="rv-chip">Para preparar</span><span class="rv-chip">Enviadas manualmente</span><span class="rv-chip">Entrevistas y resultados</span></div>
@@ -225,6 +226,7 @@ $('cvList').innerHTML=cvs.map(c=>{
  $('history').innerHTML=approvals.map(a=>{let j=jobs.find(j=>j.id===a.job_id);return '<p class="small">'+html(j?.company||'Oferta archivada')+' · '+html(j?.title||'')+' · Aprobada '+fmt(a.approved_at)+' · <strong>'+(a.user_reported_sent_at?'Envío declarado por vos, sin verificar':'CV no enviado automáticamente')+'</strong></p>'}).join('')||'<p class="small">No hay aprobaciones.</p>';
  renderPreview(visible);
  renderPipeline();
+ renderSavedJobs();
  renderAutomationForm();
  document.querySelectorAll('[data-preview]').forEach(b=>b.addEventListener('click',()=>{previewJobId=b.dataset.preview;renderPreview(visible)}));
  document.querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click',()=>updatePipeline(b.dataset.save,'saved')));
@@ -237,10 +239,10 @@ $('cvList').innerHTML=cvs.map(c=>{
 }
 
 const STAGE_LABELS={saved:'Guardada',reviewing:'En revisión',ready:'CV aprobado',applied:'Enviada (declarada)',interview:'Entrevista',offer:'Oferta recibida',rejected:'Descartada',archived:'Pasada'};
-const MAIN_SCREENS=['ofertas','pipeline','portales','perfil','cvs','automation','historial'];
+const MAIN_SCREENS=['ofertas','guardados','pipeline','portales','perfil','cvs','automation','historial'];
 function navigate(key){
  const target=MAIN_SCREENS.includes(key)?key:'ofertas';
- for(const id of ['overview','ofertas','pipeline','automation','portales','profileArea','historial']){
+ for(const id of ['overview','ofertas','guardados','pipeline','automation','portales','profileArea','historial']){
   const visible=(target==='ofertas'&&(id==='overview'||id==='ofertas'))||(target===id)||((target==='perfil'||target==='cvs')&&id==='profileArea');
   $(id).classList.toggle('screen-hidden',!visible);
  }
@@ -299,6 +301,16 @@ function renderPipeline(){
  }).join('');
  holder.querySelectorAll('[data-stage-job]').forEach(el=>el.onchange=()=>updatePipeline(el.dataset.stageJob,el.value));
  holder.querySelectorAll('[data-pipeline-open]').forEach(el=>el.onclick=()=>openJob(el.dataset.pipelineOpen));
+}
+function renderSavedJobs(){
+ const active=pipeline.filter(p=>['saved','reviewing'].includes(p.stage));
+ $('savedList').innerHTML=active.map(p=>{
+  const j=jobs.find(x=>x.id===p.job_id);
+  if(!j||j.language_status!=='confirmed')return '';
+  return '<article class="job"><div class="row between"><div><h3>'+html(j.title)+'</h3><p>'+html(j.company)+' · '+html(j.location_text||'Sin ubicación')+'</p><span class="tag ok">Español</span><span class="tag">'+html(STAGE_LABELS[p.stage])+'</span></div><div class="row"><button type="button" data-saved-open="'+html(j.id)+'">Ver y preparar CV</button><button type="button" class="secondary" data-saved-archive="'+html(j.id)+'">Quitar de guardados</button></div></div></article>';
+ }).join('')||'<div class="rv-empty">Todavía no guardaste ofertas. Desde «Empleos para mí» elegí <strong>Guardar ♡</strong>.</div>';
+ $('savedList').querySelectorAll('[data-saved-open]').forEach(b=>b.onclick=()=>openJob(b.dataset.savedOpen));
+ $('savedList').querySelectorAll('[data-saved-archive]').forEach(b=>b.onclick=()=>updatePipeline(b.dataset.savedArchive,'archived'));
 }
 function renderAutomationForm(){
  $('autoPreparation').checked=autoSettings?.preparation_enabled===true;
