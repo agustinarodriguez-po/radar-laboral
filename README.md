@@ -21,6 +21,17 @@ Se conservó el proyecto original, la autenticación, los CV y las ofertas almac
 
 La base de datos se documenta en `supabase/migrations/20261020_radar_v2.sql`. La capa visual se implementa en `radar-v2.css` y el resto del código continúa en `index.html`. Pruebas de código: `node scripts/verify.mjs`, `node scripts/test-workspace.mjs` y `node scripts/test-language.mjs`. Aún falta QA integral con sesión real y carga de CV.
 
+
+## Asistente personal de carrera (requisitos de la única usuaria)
+
+- El perfil personal incluye `favorite_tasks`, `avoid_tasks` y `priority_role`. Preferencias confirmadas: **le gustan las tareas administrativas**; **prefiere evitar atención constante o masiva a muchas personas**. Prioridad: Administración / Back Office. No asumir que disfruta tareas específicas que no haya confirmado.
+- El explorador usa estos datos para ordenar por recomendación cualitativa y después por fecha. El detector de alto volumen necesita señales explícitas (call center, llamadas masivas, etc.). **No descarta todos los puestos de Customer Success por su nombre.**
+- El asesor compara título, idioma, modalidad y descripción con habilidades que la usuaria confirmó mediante evidencia. Marca las palabras clave no respaldadas como **pendientes**, nunca inventa experiencia ni valores de sueldo.
+- En **Analizar una oferta** la usuaria puede pegar una descripción laboral. La evaluación ocurre localmente en el navegador, sin guardarla ni consultar un servicio de IA. Los estados de idioma y geografía se indican manualmente y, si se desconocen, no se marcan como confirmados.
+- Entrevistas: sugiere preguntas orientadas al puesto para que las practique con experiencias verdaderas. Las ideas de presentación son **solo temas a considerar**: queda estrictamente prohibido generar cartas completas o enviarlas.
+- Este asistente es **un motor determinista de recomendaciones**, no un sistema de IA generativa y no predice el resultado de una selección. Antes de publicitar funciones de IA generativa habrá que implementar y probar un proveedor, permisos y privacidad explícitos.
+- No envía postulaciones ni CVs sin su aprobación individual. Auto Apply continúa bloqueado por restricciones de base de datos.
+
 ## Estado real del MVP
 
 | Función | Estado |
