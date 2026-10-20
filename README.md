@@ -11,7 +11,7 @@ Herramienta privada para revisar vacantes reales **redactadas principalmente en 
 |---|---|
 | Inicio de sesión con Supabase Auth | Implementado |
 | Consulta bajo demanda a APIs | Implementada (Jobicy, Arbeitnow, Get on Board, fuentes configuradas de Greenhouse y Lever). Get on Board consulta hasta dos páginas de las categorías seleccionadas de operaciones, soporte y otras relacionadas. |
-| Accesos a Computrabajo, Indeed, LinkedIn y Bumeran | Implementados como **búsquedas externas abiertas por el usuario**, no como integraciones automáticas de vacantes |
+| Accesos a Computrabajo, Indeed, LinkedIn, Bumeran, Workana y WeRemoto | Implementados como **búsquedas externas abiertas por el usuario**, no como integraciones automáticas de vacantes |
 | Resultados con URL original y fecha publicada | Implementado cuando la fuente aporta los datos |
 | Filtro obligatorio de anuncios en español | Implementado en el backend y la interfaz; clasificador conservador, sujeto a revisión manual |
 | Filtros de antigüedad y elegibilidad | Implementación básica |
@@ -63,3 +63,10 @@ No navega cuentas externas automáticamente, no evita restricciones de portales 
 En la sección **Portales argentinos y latinoamericanos** podés elegir Administración, Procesos, Customer Success o Soporte Funcional y abrir Computrabajo o Indeed en una búsqueda correspondiente. LinkedIn y Bumeran se abren en sus buscadores oficiales. Las publicaciones de esos cuatro portales **no se importan automáticamente** a Radar Laboral: revisar personalmente que la oferta siga abierta, esté escrita en español, no exija inglés y admita trabajo remoto desde Argentina o modalidad híbrida en Mar del Plata.
 
 El motor automático de Get on Board usa su API pública documentada; no existe una conexión aprobada de Radar Laboral con las APIs de búsqueda de empleo de Computrabajo, LinkedIn, Indeed ni Bumeran. No se utilizan técnicas para evadir sus controles de acceso. Para obtener datos de esas plataformas dentro de Radar Laboral se necesitaría una API autorizada o una integración aprobada.
+
+## Workana y WeRemoto
+
+- **Workana**: acceso externo a proyectos freelance de Argentina, en `https://www.workana.com/es/jobs?country=AR`. Dentro de Workana hay que filtrar por idioma español y categoría profesional. La mayoría de propuestas son por proyecto o por horas, no puestos laborales tradicionales.
+- **WeRemoto**: accesos externos a las secciones de Administración y Atención al Cliente, seleccionadas según el puesto objetivo. No todas las publicaciones de WeRemoto están redactadas en español, por lo que el idioma debe verificarse en la oferta original.
+- El filtro de español del buscador de Radar Laboral **no puede aplicarse a los sitios que se abren en otra pestaña**. No se realiza scraping ni importación automática de Workana o WeRemoto.
+- **Finvert**: sin integración hasta confirmar la URL o el nombre exacto de la plataforma; no se encontró un portal laboral verificable con ese nombre. No confundir con Fiverr sin confirmación del usuario.
