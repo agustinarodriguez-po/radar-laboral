@@ -5,13 +5,21 @@ const css=readFileSync('radar-v2.css','utf8');
 const backend=readFileSync('supabase/functions/buscar-ofertas/index.ts','utf8');
 const script=html.match(/<script type="module">([\s\S]*?)<\/script>/)?.[1];
 assert.ok(script,'El frontend debe cargar su módulo JS');
-for(const name of ['ofertas','guardados','pipeline','cvs','perfil','automation','portales','historial']){
+for(const name of ['ofertas','analizar','guardados','pipeline','cvs','perfil','automation','portales','historial']){
  assert.ok(html.includes('id="'+name+'"'), 'Falta pantalla: '+name);
  assert.ok(html.includes('data-screen="'+name+'"'), 'Falta acceso lateral a: '+name);
 }
 for(const id of ['jobPreview','jobList','pipelineBoard','savedList','autoForm','autoDailyLimit','autoConsent','autoPreparation']){
  assert.ok(html.includes('id="'+id+'"'),'No se encontró: '+id);
 }
+for (const id of ['jdForm','jdTitle','jdCompany','jdDescription','jdLanguage','jdGeo','jdResult','favoriteTasks','avoidTasks','priorityRole']) {
+ assert.ok(html.includes('id="'+id+'"'),'Falta control de asistente personalizado: '+id);
+}
+assert.ok(script.includes("careerProfile=p;"),'No se cargan las preferencias laborales personales');
+assert.ok(script.includes("adviceHTML(job)"),'La interfaz no ejecuta el asistente');
+assert.ok(script.includes("extractJDKeywords(title+' '+description)"),'No se analizan descripciones compartidas');
+assert.ok(script.includes("favorite_tasks:$('favoriteTasks').value.trim()"),'No se guardan tareas favoritas');
+assert.ok(script.includes("avoid_tasks:$('avoidTasks').value.trim()"),'No se guardan tareas que preferís evitar');
 assert.ok(css.includes('.job-explorer{display:grid;grid-template-columns:'),'Falta explorador tres columnas');
 assert.ok(css.includes('@media(max-width:760px)'),'Sin diseño para celular');
 assert.ok(script.includes("jobs.filter(j=>j.language_status==='confirmed')"),'El filtro obligatorio de español desapareció');
