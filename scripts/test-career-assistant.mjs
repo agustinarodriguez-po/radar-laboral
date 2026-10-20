@@ -1,5 +1,5 @@
 import assert from 'node:assert/strict';
-import {evaluateJob,mentionsHighVolumeAttention,roleFor} from '../career-assistant.mjs';
+import {evaluateJob,mentionsHighVolumeAttention,roleFor,extractJDKeywords} from '../career-assistant.mjs';
 const preferences={priority_role:'administracion',favorite_tasks:'Tareas administrativas',avoid_tasks:'Atención constante a muchas personas; atención masiva al público'};
 const job={title:'Analista administrativa',company:'Empresa de prueba',description_text:'Buscamos experiencia con Excel y control de facturación y planillas. Tareas administrativas de registro y validación.',language_status:'confirmed',geography_status:'confirmed',published_at:'2026-10-19T10:00:00Z',ats_found:['Excel','CRM'],salary_text:'ARS 1.700.000'};
 const evidence=[{skill:'Excel',evidence:'Preparo y controlo las planillas de cupos en mi trabajo.',confirmed:true}];
@@ -31,4 +31,9 @@ const unconfirmed=evaluateJob(job,preferences,[{skill:'Excel',evidence:'Experien
 assert.equal(unconfirmed.verifiedKeywords.length,0);
 assert.ok(unconfirmed.unverifiedKeywords.includes('Excel'));
 assert.equal(mentionsHighVolumeAttention('Administración','Gestión de registros y conciliaciones.'),false);
+const jdTerms=extractJDKeywords('Estamos buscando apoyo en procesos, administración, Excel, facturación, Jira y seguimiento de clientes.');
+assert.ok(jdTerms.includes('Excel'));
+assert.ok(jdTerms.includes('Jira'));
+assert.ok(jdTerms.includes('facturación'));
+assert.ok(!jdTerms.includes('SQL'),'No se deben inventar requisitos en una publicación');
 console.log('Asistente personal: 9 escenarios pasaron (administración, atención masiva, Customer Success, idioma, geografía, ATS, CV y carta).');
