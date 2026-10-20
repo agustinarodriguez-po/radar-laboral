@@ -13,3 +13,6 @@ jobs:
           node-version: '22'
       - name: Verificar JavaScript y controles
         run: node scripts/verify.mjs
+
+      - name: Validar publicaciones en español
+        run: node scripts/test-language.mjs
