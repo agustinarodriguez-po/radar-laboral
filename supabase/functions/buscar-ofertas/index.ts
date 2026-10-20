@@ -21,8 +21,11 @@ function detectSpanish(text: string): 'confirmed'|'excluded'|'pending' {
  if(words.length<24)return 'pending';
  const spanishWords=new Set('el la los las de del que para con por una uno un en se su sus nuestra nuestro nuestros nuestras tus tu como entre esta este estamos somos buscamos busco busca necesitan necesitamos requisitos experiencia trabajo equipo empresa clientes cliente gestionar gestion conocimientos habilidades responsabilidades postulacion postular postulaciones posicion ofrecemos tendras podras seras deseable excluyente excluyentes atender atencion laboral funciones puesto tareas realizar jornada conocimientos habilidades mediante experiencia perfil requisito buscamos queremos siguiente siguientes'.split(' '));
  const englishWords=new Set('the and with for you your our are we will this that have has years experience work working team responsibilities requirements must strong skills support customer business looking to in an be as of on or from able at who their is including using ensure develop drive across do not product role us ideal candidate company applicants job apply should remote please opportunity great offer offers how what why where when deliver building build be expected successfully maintain experience apply'.split(' '));
- let spanish=0,english=0;const distinctive=new Set();
- for(const w of words){if(spanishWords.has(w)){spanish++;if(w.length>=4)distinctive.add(w)}if(englishWords.has(w))english++}
+ const portugueseWords=new Set('voce voces nossa nossas nosso nossos uma umas pessoa pessoas equipe trabalhar trabalho atendimento precisamos procurando seus serao conosco sucesso estara tambem empresas relacionamento comunicacao operacoes remoto trabalho profissional profissionais sera voce'.split(' '));
+ let spanish=0,english=0,portuguese=0;const distinctive=new Set();
+ for(const w of words){if(spanishWords.has(w)){spanish++;if(w.length>=4)distinctive.add(w)}if(englishWords.has(w))english++;if(portugueseWords.has(w))portuguese++}
+ // "De/para/clientes" también aparecen en portugués: descartamos esta falsa coincidencia.
+ if(portuguese>=3 && (portuguese>=5 || portuguese*4>spanish))return 'pending';
  if(spanish>=8 && distinctive.size>=3 && spanish>=english*1.45)return 'confirmed';
  if(english>=7 && english>spanish*1.1)return 'excluded';
  return 'pending';
