@@ -16,6 +16,8 @@ jobs:
 
       - name: Validar publicaciones en español
         run: node scripts/test-language.mjs
+      - name: Verificar fuentes y diagnósticos por portal
+        run: node scripts/test-sources.mjs
       - name: Validar interfaz Radar 2.0 y seguridad Auto Apply
         run: node scripts/test-workspace.mjs
       - name: Validar asesor personal y preferencias laborales
