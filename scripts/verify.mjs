@@ -71,4 +71,17 @@ if(!html.includes('el filtro obligatorio de español se aplica a las ofertas den
 if(!html.includes('Búsqueda externa, no automatizada')){
  throw new Error('Falta aclarar que estos portales no están integrados a la API');
 }
+
+// Himalayas puede alimentarse por API pública; Glassdoor solo vía enlace externo.
+for(const id of ['portal-himalayas','portal-glassdoor']){
+ if(!declared.has(id))throw new Error('No aparece el nuevo portal '+id);
+}
+if(!html.includes('https://www.glassdoor.com.ar/Job/index.htm'))throw new Error('Falta el enlace oficial a Glassdoor Argentina');
+if(!html.includes('Datos proporcionados por Himalayas'))throw new Error('Falta atribución visible a Himalayas');
+const backend=readFileSync('supabase/functions/buscar-ofertas/index.ts','utf8');
+for(const item of ['async function himalayas()',"name:'Himalayas · Argentina'","country=AR&sort=recent&page=1","source:'himalayas'","assessment.language_status!=='confirmed'"]){
+ if(!backend.includes(item))throw new Error('Falta integración segura de Himalayas: '+item);
+}
+if(!backend.includes('url:applicationLink,apply_url:applicationLink'))throw new Error('Se debe usar applicationLink de Himalayas para postular');
+if(backend.includes("source:'glassdoor'"))throw new Error('Glassdoor no debe figurar como fuente automática sin autorización');
 console.log('QA básico aprobado: sintaxis del JavaScript, '+declared.size+' elementos HTML y '+selected.length+' referencias de controles verificadas.');
