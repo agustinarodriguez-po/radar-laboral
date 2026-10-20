@@ -68,7 +68,7 @@ if(!html.includes('https://www.workana.com/es/jobs?country=AR')){
 if(!html.includes('el filtro obligatorio de español se aplica a las ofertas dentro de Radar Laboral')){
  throw new Error('Falta la advertencia de idioma en sitios externos');
 }
-if(!html.includes('Búsqueda externa, no automatizada')){
+if(!html.includes('Enlaces externos (Himalayas también es fuente automática)')){
  throw new Error('Falta aclarar que estos portales no están integrados a la API');
 }
 
