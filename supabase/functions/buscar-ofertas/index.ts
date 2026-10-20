@@ -1,6 +1,6 @@
 import { createClient } from 'npm:@supabase/supabase-js@2.57.0';
 
-type Offer = {source:string;source_slug:string;external_id:string;company:string;title:string;location_text:string;workplace:string;url:string;apply_url:string;description_text:string;published_at:string|null;updated_at_source:string|null};
+type Offer = {source:string;source_slug:string;external_id:string;company:string;title:string;location_text:string;workplace:string;url:string;apply_url:string;description_text:string;published_at:string|null;updated_at_source:string|null;salary_text?:string};
 const hdr={'Access-Control-Allow-Origin':'*','Access-Control-Allow-Headers':'authorization, x-client-info, apikey, content-type','Access-Control-Allow-Methods':'POST, OPTIONS','Content-Type':'application/json'};
 const respond=(body:unknown,status=200)=>new Response(JSON.stringify(body),{status,headers:hdr});
 const target=/administrati|administrativ|back.?office|operaci[oó]n|operations|process|procesos|analista funcional|functional analyst|business analyst|customer success|customer support|soporte|support|billing|factur|cobranz|collection|accounts receivable|reconciliation|onboarding|account specialist/i;
@@ -95,6 +95,49 @@ async function arbeitnow():Promise<Offer[]>{
   return [{source:'arbeitnow',source_slug:'europe',external_id:String(x.slug||url),company:String(x.company_name||'Empresa no informada'),title:String(x.title),location_text:String(x.location||''),workplace:'remote',url,apply_url:url,description_text:strip(String(x.description||'')),published_at:iso(x.created_at),updated_at_source:null}];
  });
 }
+// Himalayas: API pública, sin clave, requiere atribución y applicationLink para aplicar.
+// Ref: https://himalayas.app/docs/remote-jobs-api
+async function himalayas():Promise<Offer[]>{
+ const keywords=['administrativo','operations','customer success','soporte'];
+ const responses=await Promise.allSettled(keywords.map(async q=>{
+  const api='https://himalayas.app/jobs/api/search?q='+encodeURIComponent(q)+'&country=AR&sort=recent&page=1';
+  const data=await get(api);
+  if(!Array.isArray(data.jobs))throw Error('Himalayas: formato de API inesperado ('+q+')');
+  return data.jobs;
+ }));
+ const good=responses.filter((v):v is PromiseFulfilledResult<any[]>=>v.status==='fulfilled');
+ if(!good.length)throw Error('Himalayas: no respondió ninguna consulta');
+ const unique=new Map<string,Offer>();
+ for(const job of good.flatMap(v=>v.value)){
+  const title=String(job.title||'');
+  if(!isRelevant(title))continue;
+  const id=String(job.guid||'');
+  const applicationLink=String(job.applicationLink||'');
+  // Prohibido sustituir el applicationLink de Himalayas por un enlace externo de la empresa.
+  if(!id||!validURL(applicationLink))continue;
+  const hostname=new URL(applicationLink).hostname;
+  if(!/^(?:[\w-]+\.)?himalayas\.app$/.test(hostname))continue;
+  const limits=Array.isArray(job.locationRestrictions)?job.locationRestrictions.map((v:unknown)=>String(v)):[];
+  const location=limits.length?'Remoto · '+limits.join(', '):'Remoto · mundial (verificar contratación desde Argentina)';
+  const min=typeof job.minSalary==='number'?job.minSalary:null;
+  const max=typeof job.maxSalary==='number'?job.maxSalary:null;
+  const amount=min!==null&&max!==null?min+'–'+max:min!==null?String(min):max!==null?String(max):'';
+  const salary=amount?String(job.currency||'')+' '+amount+' '+String(job.salaryPeriod||'annual'):'';
+  const description=strip(String(job.description||job.excerpt||''));
+  if(!description)continue;
+  const posting={
+   source:'himalayas',source_slug:'remote-ar',external_id:id,
+   company:String(job.companyName||'Empresa no informada'),
+   title,location_text:location,workplace:'remote',
+   url:applicationLink,apply_url:applicationLink,
+   description_text:description,published_at:iso(job.pubDate),
+   updated_at_source:null,salary_text:salary
+  };
+  unique.set(id,posting);
+ }
+ return [...unique.values()];
+}
+
 async function jobicy():Promise<Offer[]>{
  // API pública documentada: solo ofertas publicadas en los últimos siete días.
  const response=await get('https://jobicy.com/api/v2/remote-jobs?count=200');
@@ -154,6 +197,7 @@ async function listFor(j:any):Promise<Offer[]>{
  if(j.source==='getonbrd')return getonbrd();
  if(j.source==='arbeitnow')return arbeitnow();
  if(j.source==='jobicy')return jobicy();
+ if(j.source==='himalayas')return himalayas();
  return [];
 }
 Deno.serve(async request=>{
@@ -185,7 +229,7 @@ Deno.serve(async request=>{
  const roles=String(profile?.roles||'');
  const {data:sources,error:sourceError}=await sb.from('job_sources').select('provider,slug').eq('user_id',user.id).eq('enabled',true).limit(15);
  if(sourceError)return respond({error:sourceError.message},500);
- const tasks=[{name:'Jobicy · últimos 7 días',fetch:jobicy},{name:'Arbeitnow',fetch:arbeitnow},{name:'Get on Board',fetch:getonbrd},...(sources||[]).filter((s:any)=>slugOK(s.slug)).map((s:any)=>({name:s.provider+'/'+s.slug,fetch:()=>s.provider==='greenhouse'?greenhouse(s.slug):lever(s.slug)}))];
+ const tasks=[{name:'Himalayas · Argentina',fetch:himalayas},{name:'Jobicy · últimos 7 días',fetch:jobicy},{name:'Arbeitnow',fetch:arbeitnow},{name:'Get on Board',fetch:getonbrd},...(sources||[]).filter((s:any)=>slugOK(s.slug)).map((s:any)=>({name:s.provider+'/'+s.slug,fetch:()=>s.provider==='greenhouse'?greenhouse(s.slug):lever(s.slug)}))];
  const {data:runRecord}=await sb.from('search_runs').insert({user_id:user.id,source_summary:{status:'started'}}).select('id').single();
  const res=await Promise.allSettled(tasks.map(t=>t.fetch()));
  let imported=0,updated=0,matched=0,discardedLanguage=0;const errors:string[]=[];
