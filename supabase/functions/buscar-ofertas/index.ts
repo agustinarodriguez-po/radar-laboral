@@ -13,6 +13,20 @@ const validURL=(u:string)=>{try{const v=new URL(u);return v.protocol==='https:' 
 const strip=(s:string)=>s.replace(/<[^>]*>/g,' ').replace(/&nbsp;|&#160;/g,' ').replace(/&amp;/g,'&').replace(/&quot;/g,'"').replace(/\s+/g,' ').trim();
 const iso=(v:unknown)=>{if(!v)return null;const d=new Date(typeof v==='number'?(v<1e11?v*1000:v):String(v));return Number.isNaN(+d)?null:d.toISOString();};
 async function get(u:string):Promise<any>{const r=await fetch(u,{headers:{Accept:'application/json'},signal:AbortSignal.timeout(11000)});if(!r.ok)throw new Error('API HTTP '+r.status);return r.json();}
+
+// Clasificación conservadora del IDIOMA REAL DEL AVISO (no infiere español por ser remoto en LATAM).
+// Ante texto insuficiente o mezcla de idiomas, el resultado es "pending" y no se muestra al usuario.
+function detectSpanish(text: string): 'confirmed'|'excluded'|'pending' {
+ const words=(normalize(String(text||'').slice(0,30000)).match(/[a-z]+/g)||[]);
+ if(words.length<24)return 'pending';
+ const spanishWords=new Set('el la los las de del que para con por una uno un en se su sus nuestra nuestro nuestros nuestras tus tu como entre esta este estamos somos buscamos busco busca necesitan necesitamos requisitos experiencia trabajo equipo empresa clientes cliente gestionar gestion conocimientos habilidades responsabilidades postulacion postular postulaciones posicion ofrecemos tendras podras seras deseable excluyente excluyentes atender atencion laboral funciones puesto tareas realizar jornada conocimientos habilidades mediante experiencia perfil requisito buscamos queremos siguiente siguientes'.split(' '));
+ const englishWords=new Set('the and with for you your our are we will this that have has years experience work working team responsibilities requirements must strong skills support customer business looking to in an be as of on or from able at who their is including using ensure develop drive across do not product role us ideal candidate company applicants job apply should remote please opportunity great offer offers how what why where when deliver building build be expected successfully maintain experience apply'.split(' '));
+ let spanish=0,english=0;const distinctive=new Set();
+ for(const w of words){if(spanishWords.has(w)){spanish++;if(w.length>=4)distinctive.add(w)}if(englishWords.has(w))english++}
+ if(spanish>=8 && distinctive.size>=3 && spanish>=english*1.45)return 'confirmed';
+ if(english>=7 && english>spanish*1.1)return 'excluded';
+ return 'pending';
+}
 type Evidence = {skill:string,evidence:string,confirmed:boolean};
 function classify(j:Offer,evidences:Evidence[],roles:string){
  const area=normalize(j.location_text+' '+j.workplace);
@@ -38,12 +52,20 @@ function classify(j:Offer,evidences:Evidence[],roles:string){
  } else {
    reasons.push('Ubicación y modalidad no suficientemente documentadas');
  }
- if(/english (required|mandatory|fluency|proficiency)|fluent (in )?english|advanced english|c1 (level )?english|must (be )?(fluent|proficient).{0,20}english|ingles (obligatorio|excluyente|avanzado|fluido)|dominio del ingles|bilingual.{0,20}english/.test(description)){
-   language_status='excluded';reasons.push('Requiere inglés avanzado o fluido');
- } else if(/idioma espanol|spanish speaking|trabajo en espanol|solo espanol|spanish required|espanol nativo/.test(description)){
+ const postingLanguage=detectSpanish(j.description_text);
+ const requiresEnglish=/(?:english|ingles)\s*(?:is\s*)?(?:required|mandatory|fluency|proficiency|c1|c2|fluent|advanced|obligatorio|excluyente|avanzado|fluido)|fluent\s+(?:written\s+and\s+spoken\s+)?english|advanced\s+english|(?:strong|excellent|professional)\s+(?:spoken\s+and\s+written\s+)?english|c1\s+(?:or\s+better|english|level)|(?:must|need)\s+(?:speak|write|communicate)[^\n.]{0,35}english|dominio\s+del\s+ingles|ingles\s+(?:nivel\s+)?(?:c1|c2|avanzado)|bilingual[^\n.]{0,25}english/.test(description);
+ if(requiresEnglish){
+   language_status='excluded';
+   reasons.push('Se exige inglés, incluso si partes de la publicación están en español');
+ } else if(postingLanguage==='confirmed'){
    language_status='confirmed';
- } else {
-   reasons.push('Idioma laboral no confirmado');
+   reasons.push('El texto principal de la publicación está en español (detección automática; verificar en origen)');
+ } else if(postingLanguage==='excluded'){
+   language_status='excluded';
+   reasons.push('El texto principal de la publicación está en inglés');
+ } else{
+   language_status='pending';
+   reasons.push('No se pudo confirmar que la publicación esté redactada principalmente en español');
  }
  const profile=normalize(roles);
  const roleClusters=[
@@ -158,22 +180,24 @@ Deno.serve(async request=>{
  const tasks=[{name:'Jobicy · últimos 7 días',fetch:jobicy},{name:'Arbeitnow',fetch:arbeitnow},{name:'Get on Board',fetch:getonbrd},...(sources||[]).filter((s:any)=>slugOK(s.slug)).map((s:any)=>({name:s.provider+'/'+s.slug,fetch:()=>s.provider==='greenhouse'?greenhouse(s.slug):lever(s.slug)}))];
  const {data:runRecord}=await sb.from('search_runs').insert({user_id:user.id,source_summary:{status:'started'}}).select('id').single();
  const res=await Promise.allSettled(tasks.map(t=>t.fetch()));
- let imported=0,updated=0,matched=0;const errors:string[]=[];
+ let imported=0,updated=0,matched=0,discardedLanguage=0;const errors:string[]=[];
  for(let i=0;i<res.length;i++){
   if(res[i].status==='rejected'){errors.push(tasks[i].name+': '+String((res[i] as PromiseRejectedResult).reason).slice(0,110));continue}
   const arr=(res[i] as PromiseFulfilledResult<Offer[]>).value;
   matched+=arr.length;
   for(const j of arr){
    if(!validURL(j.url)||!validURL(j.apply_url))continue;
+   const assessment=classify(j,evidences,roles);
+   if(assessment.language_status!=='confirmed'){discardedLanguage++;continue;}
    const keys={user_id:user.id,source:j.source,source_slug:j.source_slug,external_id:j.external_id};
    const {data:old,error:lookupErr}=await sb.from('jobs').select('id').match(keys).maybeSingle();
    if(lookupErr){errors.push(tasks[i].name+': consulta fallida');break}
-   const data={...j,...classify(j,evidences,roles),original_url:j.url,source_job_id:j.external_id,description:j.description_text,employment_location:j.location_text,verified_at:new Date().toISOString(),verification_status:'verified',source_checked_at:new Date().toISOString(),checked_at:new Date().toISOString()};
+   const data={...j,...assessment,original_url:j.url,source_job_id:j.external_id,description:j.description_text,employment_location:j.location_text,verified_at:new Date().toISOString(),verification_status:'verified',source_checked_at:new Date().toISOString(),checked_at:new Date().toISOString()};
    const result=old?await sb.from('jobs').update(data).eq('user_id',user.id).eq('id',old.id):await sb.from('jobs').insert({...keys,...data});
    if(result.error){errors.push(tasks[i].name+': '+result.error.message.slice(0,115));break}
    if(old)updated++;else imported++;
   }
  }
  if(runRecord?.id){await sb.from('search_runs').update({finished_at:new Date().toISOString(),found_count:imported+updated,source_summary:{status:'completed',sources:tasks.map((task,i)=>({name:task.name,status:res[i].status,count:res[i].status==='fulfilled'?(res[i] as PromiseFulfilledResult<Offer[]>).value.length:0})),errors}}).eq('id',runRecord.id).eq('user_id',user.id)}
- return respond({imported,updated,matched,sources:tasks.length,errors,at:new Date().toISOString(),notice:'No enviamos CV. Revisa fecha, geografía y lenguaje antes de aprobar.'});
+ return respond({imported,updated,matched,discardedLanguage,sources:tasks.length,errors,at:new Date().toISOString(),notice:'Solo se guardan avisos redactados principalmente en español y sin inglés obligatorio. Nunca se envía un CV sin autorización.'});
 });
