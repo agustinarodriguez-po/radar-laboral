@@ -5,6 +5,22 @@
 
 Herramienta privada para revisar vacantes reales **redactadas principalmente en español y sin inglés obligatorio**, analizar términos ATS sin inventar experiencia, preparar postulaciones y registrar manualmente las enviadas. Las publicaciones en inglés, portugués o de idioma no confirmado se ocultan.
 
+## Radar Laboral 2.0 — rediseño inspirado en el flujo de Landeo
+
+Se conservó el proyecto original, la autenticación, los CV y las ofertas almacenadas. La navegación ahora dispone de: **Empleos para mí** (filtros + lista + vista previa), **Guardados**, **Mis candidaturas** (seguimiento por etapas), **Mis currículums**, **Mi perfil laboral**, **Automatización**, **Portales externos** e **Historial**.
+
+**Auto Apply: NO disponible para enviar.** La pantalla de automatización guarda preferencias y límites para una integración futura, pero no genera una cola ejecutable ni envía CVs. Las tablas `radar_automation_settings` y `radar_job_pipeline` aplican RLS; se exige idioma español, aprobación individual y `auto_send_enabled=false` por restricción de base de datos. No existe ningún proveedor autorizado con privilegios de envío en el proyecto. La eventual integración requerirá API del proveedor explícitamente autorizada, credenciales del integrador mantenidas solo en el servidor, confirmación del candidato por vacante y CV, idempotencia, cuotas, recibo verificable y mecanismo de revocación.
+
+- Greenhouse Job Board API permite envíos **solo con clave de la empresa**: https://docs.greenhouse.io/job-board
+- Lever Postings API requiere **clave generada por administradores del empleador**: https://github.com/lever/postings-api
+- Himalayas es una API **de lectura**, no de envíos; cada enlace Apply debe pasar por `applicationLink`: https://himalayas.app/docs/remote-jobs-api
+- No se evaden captchas, restricciones, cuotas de terceros ni controles de privacidad.
+- El límite diario en Configuración es una **preferencia futura**, no un límite operativo aún.
+- Las candidaturas «enviadas» y «entrevistas» se anotan manualmente, no se infieren de la apertura de un formulario.
+- Los resultados ATS siguen siendo orientativos y no implican experiencia acreditada si la persona no añadió evidencia.
+
+La base de datos se documenta en `supabase/migrations/20261020_radar_v2.sql`. La capa visual se implementa en `radar-v2.css` y el resto del código continúa en `index.html`. Pruebas de código: `node scripts/verify.mjs`, `node scripts/test-workspace.mjs` y `node scripts/test-language.mjs`. Aún falta QA integral con sesión real y carga de CV.
+
 ## Estado real del MVP
 
 | Función | Estado |
