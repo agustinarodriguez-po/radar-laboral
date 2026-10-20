@@ -23,6 +23,8 @@ button.secondary:hover,.button.secondary:hover{background:#e1dcfb}
 #app>.grid h2{font-size:28px;margin:9px 0 0}
 #app>.grid .small{font-size:12px}
 #app>.card{margin:0 0 18px}
+#profileArea{display:block}
+#profileArea>.card{max-width:970px;margin:0 auto 18px}
 #app .screen-hidden{display:none!important}
 #ofertas{padding:23px}
 #ofertas> .row:first-child{align-items:flex-start}
