@@ -56,6 +56,18 @@ for(const id of ['portales','portalRole','portal-computrabajo','portal-indeed','
 if(!js.includes('function renderPortalLinks(')||!js.includes('PORTAL_COMPUTRABAJO')){
  throw new Error('No funciona la elección de portal según el perfil');
 }
+for(const id of ['portal-workana','portal-weremoto']){
+ if(!declared.has(id))throw new Error('Falta acceso verificado a '+id);
+}
+if(!js.includes('PORTAL_WEREMOTO')||!js.includes("$('portal-weremoto').href")){
+ throw new Error('El enlace de WeRemoto no se adapta al perfil');
+}
+if(!html.includes('https://www.workana.com/es/jobs?country=AR')){
+ throw new Error('No está disponible la búsqueda Workana Argentina');
+}
+if(!html.includes('el filtro obligatorio de español se aplica a las ofertas dentro de Radar Laboral')){
+ throw new Error('Falta la advertencia de idioma en sitios externos');
+}
 if(!html.includes('Búsqueda externa, no automatizada')){
  throw new Error('Falta aclarar que estos portales no están integrados a la API');
 }
