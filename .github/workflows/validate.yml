@@ -16,3 +16,5 @@ jobs:
 
       - name: Validar publicaciones en español
         run: node scripts/test-language.mjs
+      - name: Comprobar API Himalayas en vivo
+        run: node scripts/smoke-himalayas.mjs
