@@ -10,7 +10,7 @@ Herramienta privada para revisar vacantes reales **redactadas principalmente en 
 | Función | Estado |
 |---|---|
 | Inicio de sesión con Supabase Auth | Implementado |
-| Consulta bajo demanda a APIs | Implementada (Jobicy, Arbeitnow, Get on Board, fuentes configuradas de Greenhouse y Lever). Get on Board consulta hasta dos páginas de las categorías seleccionadas de operaciones, soporte y otras relacionadas. |
+| Consulta bajo demanda a APIs | Implementada (Himalayas, Jobicy, Arbeitnow, Get on Board, fuentes configuradas de Greenhouse y Lever). Get on Board consulta hasta dos páginas de las categorías seleccionadas de operaciones, soporte y otras relacionadas. |
 | Accesos a Computrabajo, Indeed, LinkedIn, Bumeran, Workana y WeRemoto | Implementados como **búsquedas externas abiertas por el usuario**, no como integraciones automáticas de vacantes |
 | Resultados con URL original y fecha publicada | Implementado cuando la fuente aporta los datos |
 | Filtro obligatorio de anuncios en español | Implementado en el backend y la interfaz; clasificador conservador, sujeto a revisión manual |
@@ -70,3 +70,9 @@ El motor automático de Get on Board usa su API pública documentada; no existe 
 - **WeRemoto**: accesos externos a las secciones de Administración y Atención al Cliente, seleccionadas según el puesto objetivo. No todas las publicaciones de WeRemoto están redactadas en español, por lo que el idioma debe verificarse en la oferta original.
 - El filtro de español del buscador de Radar Laboral **no puede aplicarse a los sitios que se abren en otra pestaña**. No se realiza scraping ni importación automática de Workana o WeRemoto.
 - **Finvert**: sin integración hasta confirmar la URL o el nombre exacto de la plataforma; no se encontró un portal laboral verificable con ese nombre. No confundir con Fiverr sin confirmación del usuario.
+
+## Himalayas y Glassdoor (2026-10-20)
+
+- **Himalayas**: integración automática con API pública oficial `https://himalayas.app/jobs/api/search` sin clave. Se consultan puestos de administración, operaciones, Customer Success y soporte para Argentina y se almacenan **solo si la descripción principal está en español y no exige inglés obligatorio**. La API puede no devolver vacantes compatibles; no se crean datos ficticios. Los resultados atribuyen visiblemente a Himalayas, y el enlace de postulación utiliza exclusivamente el `applicationLink` provisto por su API, como exigen sus términos. Fuente: https://himalayas.app/docs/remote-jobs-api. Su listado completo se puede consultar en `https://himalayas.app/jobs`.
+- **Glassdoor Argentina**: enlace externo en `https://www.glassdoor.com.ar/Job/index.htm`. No existe una integración automática implementada. Las vacantes externas deben revisarse manualmente para confirmar descripción en español, ausencia de inglés obligatorio, modalidad y contratación desde Argentina.
+- Estos cambios solo afectan el proyecto Radar Laboral; no modifican otros proyectos o bases de datos.
