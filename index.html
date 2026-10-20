@@ -24,6 +24,20 @@ function fail(e){let msg=e?.message||String(e);const messages={'Signup requires 
 function setAuth(yes){$('auth').classList.toggle('hide',yes);$('app').classList.toggle('hide',!yes);$('logout').classList.toggle('hide',!yes);$('who').textContent=yes?user.email:''}
 async function get(table,sort){const {data,error}=await sb.from(table).select('*').order(sort,{ascending:false}).limit(900);if(error)throw error;return data||[]}
 async function refresh(){[jobs,cvs,approvals,sources,runs]=await Promise.all([get('jobs','checked_at'),get('cv_files','uploaded_at'),get('application_approvals','approved_at'),get('job_sources','created_at'),get('search_runs','started_at')]);render()}
+async function signIn(){
+ const {data:{session},error:sessionError}=await sb.auth.getSession();
+ if(sessionError)throw sessionError;
+ user=session?.user||null;setAuth(!!user);
+ if(!user)return;
+ let {data:p,error}=await sb.from('profiles').select('*').eq('user_id',user.id).maybeSingle();
+ if(error)throw error;
+ if(!p){const result=await sb.from('profiles').insert({user_id:user.id,...defaults}).select().single();if(result.error)throw result.error;p=result.data}
+ for(const k of ['roles','skills','preferences'])$(k).value=p[k]||'';
+ if($('salary'))$('salary').value=p.desired_salary_ars??1500000;
+ if($('allowRemote'))$('allowRemote').checked=p.remote_argentina!==false;
+ if($('allowHybrid'))$('allowHybrid').checked=p.hybrid_mar_del_plata!==false;
+ await refresh();
+}
 function ageLabel(d){
  if(!d)return 'Fecha no informada';
  const h=(Date.now()-new Date(d).getTime())/36e5;
