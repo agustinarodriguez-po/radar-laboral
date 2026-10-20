@@ -7,7 +7,7 @@
 <header><div><h1>Radar Laboral</h1><div style="opacity:.8;font-size:13px">Ofertas verificables · CV privado · Vos autorizás</div></div><div class="row"><small id="who"></small><button id="logout" class="secondary hide">Salir</button></div></header>
 <main><div id="message" class="notice hide" role="alert"></div>
 <section class="card" id="auth"><h2>Ingresar a mi radar</h2><p class="small">Si ya creaste tu cuenta y confirmaste tu correo, escribí tus datos y presioná <strong>Ingresar</strong>. Usá <strong>Crear cuenta</strong> solo la primera vez.</p><form id="loginForm"><label>Correo<input id="email" type="email" autocomplete="email" required></label><label>Contraseña<input id="password" type="password" autocomplete="current-password" minlength="8" required placeholder="Mínimo 8 caracteres"><span style="display:block;font-weight:400;margin:8px 0 16px"><input type="checkbox" id="showPassword" style="width:auto;margin-right:7px">Mostrar contraseña</span></label><div class="row"><button>Ingresar</button><button type="button" class="secondary" id="signup">Crear cuenta</button></div></form></section>
-<section id="app" class="hide"><nav class="site-nav" aria-label="Secciones del radar"><a href="#ofertas" data-screen="ofertas" class="active">⌕ Empleos para mí</a><a href="#guardados" data-screen="guardados">♡ Guardados</a><a href="#pipeline" data-screen="pipeline">▥ Mis candidaturas</a><a href="#cvs" data-screen="cvs">▤ Mis currículums</a><a href="#perfil" data-screen="perfil">♙ Mi perfil laboral</a><a href="#automation" data-screen="automation">⚙ Automatización</a><a href="#portales" data-screen="portales">↗ Portales externos</a><a href="#historial" data-screen="historial">◷ Historial</a></nav><div class="grid" id="overview">
+<section id="app" class="hide"><nav class="site-nav" aria-label="Secciones del radar"><a href="#ofertas" data-screen="ofertas" class="active">⌕ Empleos para mí</a><a href="#analizar" data-screen="analizar">◇ Analizar una oferta</a><a href="#guardados" data-screen="guardados">♡ Guardados</a><a href="#pipeline" data-screen="pipeline">▥ Mis candidaturas</a><a href="#cvs" data-screen="cvs">▤ Mis currículums</a><a href="#perfil" data-screen="perfil">♙ Mi perfil laboral</a><a href="#automation" data-screen="automation">⚙ Automatización</a><a href="#portales" data-screen="portales">↗ Portales externos</a><a href="#historial" data-screen="historial">◷ Historial</a></nav><div class="grid" id="overview">
  <div class="card"><div class="small">Ofertas en español</div><h2 id="total">0</h2></div>
  <div class="card"><div class="small">Ubicación a verificar</div><h2 id="pending">0</h2></div>
  <div class="card"><div class="small">Guardadas</div><h2 id="savedTotal">0</h2></div>
@@ -15,6 +15,19 @@
 </div>
 <div class="card" id="ofertas"><div class="row between"><div><h2>Ofertas laborales en español</h2><p class="small">Filtro obligatorio: solo avisos redactados principalmente en español y sin inglés obligatorio. Los anuncios en inglés o de idioma incierto quedan ocultos. Se priorizan los más recientes, sin confundir la fecha de consulta con la de publicación.</p></div><button id="scan">↻ Iniciar búsqueda de hoy</button></div><p id="lastSearch" class="helper" aria-live="polite">Todavía no se registra una búsqueda en esta sesión.</p><p id="scanStatus" class="small" aria-live="polite"></p><div class="job-explorer"><div class="filters-rail"><label>Antigüedad<select id="dateFilter"><option value="all">Todas</option><option value="24">24 horas (publicadas)</option><option value="72">72 horas (publicadas)</option><option value="168">7 días (publicadas)</option></select></label><label>Elegibilidad<select id="eligibility"><option value="viable">Para revisar (sin incompatibilidades detectadas)</option><option value="confirmed">Argentina admitida explícitamente</option><option value="pending">Ubicación pendiente</option><option value="all">Todas (incluye descartadas)</option></select></label><label>Salario<select id="salaryFilter"><option value="all">Informado o no informado</option><option value="known">Con salario publicado</option></select></label><label>Buscar<input id="searchText" placeholder="puesto, empresa..."></label><button id="resetFilters" class="secondary" type="button">Limpiar filtros</button></div><div class="results-pane"><p id="resultsSummary" class="helper" aria-live="polite">Los resultados aparecerán aquí.</p><div id="jobList" class="list"><p class="small">Iniciá una búsqueda. No se muestran ofertas de prueba.</p></div></div>
 <aside id="jobPreview" class="job-preview" aria-label="Vista rápida de la oferta"><span class="rv-kicker">Vista previa</span><p>Seleccioná una oferta para revisar su compatibilidad, guardarla o preparar la postulación.</p></aside></div></div>
+<section class="card" id="analizar">
+ <span class="rv-kicker">MI ASISTENTE PERSONAL</span><h2>Analizar una oferta que encontré</h2>
+ <p class="rv-section-lead">Pegá la descripción completa del puesto. La evaluación se hace en tu navegador, utilizando tus preferencias y las evidencias que guardaste en Radar Laboral. El texto que pegás aquí no se guarda en la base de datos ni se envía a un servicio de IA.</p>
+ <form id="jdForm">
+  <div class="split"><label>Título del puesto<input id="jdTitle" required maxlength="160" placeholder="Ej.: Analista administrativa"></label>
+  <label>Empresa (opcional)<input id="jdCompany" maxlength="120" placeholder="Nombre de la empresa"></label></div>
+  <label>Descripción y requisitos<textarea id="jdDescription" rows="9" minlength="80" maxlength="35000" required placeholder="Pegá el texto de la publicación, incluyendo las tareas y requisitos..."></textarea></label>
+  <div class="split"><label>Idioma y requisito de inglés<select id="jdLanguage"><option value="pending">No lo confirmé</option><option value="confirmed">Revisé: publicación en español y sin inglés obligatorio</option><option value="excluded">Está en inglés o exige inglés obligatorio</option></select></label>
+  <label>Modalidad y ubicación<select id="jdGeo"><option value="pending">No lo confirmé</option><option value="confirmed">Revisé: remoto desde Argentina o híbrido en Mar del Plata</option><option value="excluded">No cumple mis condiciones geográficas</option></select></label></div>
+  <button type="submit">Analizar compatibilidad y preparar entrevista</button>
+ </form><div id="jdResult" role="status" aria-live="polite"></div>
+ <p class="small">El sistema no consulta si esta oferta sigue activa ni si la empresa es legítima. Verificá siempre la publicación original. Las cartas de presentación las escribís vos.</p>
+</section>
 <section class="card" id="guardados"><span class="rv-kicker">TU SELECCIÓN</span><h2>Ofertas guardadas</h2><p class="rv-section-lead">Aquí quedan las oportunidades que decidiste guardar o revisar. No se envía tu CV.</p><div id="savedList" class="list" aria-live="polite"></div></section>
 <section class="card" id="pipeline">
  <div class="row between"><div><span class="rv-kicker">SEGUIMIENTO</span><h2>Mis candidaturas</h2><p class="rv-section-lead">Gestioná tus ofertas guardadas y el estado real de cada proceso. Abrir un formulario no significa que te hayas postulado.</p></div></div>
@@ -117,7 +130,7 @@
 <script type="module">
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.57.0';
 import {CONFIG} from './config.js';
-import {evaluateJob,roleNames} from './career-assistant.mjs';
+import {evaluateJob,extractJDKeywords,roleNames} from './career-assistant.mjs';
 const $=id=>document.getElementById(id),html=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),fmt=s=>s?new Date(s).toLocaleString('es-AR'):'No informada';
 const sb=createClient(CONFIG.supabaseUrl,CONFIG.supabasePublishableKey);let user=null,jobs=[],cvs=[],approvals=[],sources=[],runs=[],evidence=[],pipeline=[],autoSettings=null,previewJobId=null,careerProfile={};
 const defaults={roles:'Analista administrativa, Back Office, Analista de procesos, Analista funcional junior, Customer Success, Soporte funcional',skills:'',preferences:'Remoto desde Argentina o híbrido solo en Mar del Plata. Sin inglés obligatorio. Salario pretendido orientativo ARS 1.500.000.'};
@@ -277,10 +290,10 @@ $('cvList').innerHTML=cvs.map(c=>{
 }
 
 const STAGE_LABELS={saved:'Guardada',reviewing:'En revisión',ready:'CV aprobado',applied:'Enviada (declarada)',interview:'Entrevista',offer:'Oferta recibida',rejected:'Descartada',archived:'Pasada'};
-const MAIN_SCREENS=['ofertas','guardados','pipeline','portales','perfil','cvs','automation','historial'];
+const MAIN_SCREENS=['ofertas','analizar','guardados','pipeline','portales','perfil','cvs','automation','historial'];
 function navigate(key){
  const target=MAIN_SCREENS.includes(key)?key:'ofertas';
- for(const id of ['overview','ofertas','guardados','pipeline','automation','portales','profileArea','historial']){
+ for(const id of ['overview','ofertas','analizar','guardados','pipeline','automation','portales','profileArea','historial']){
   const visible=(target==='ofertas'&&(id==='overview'||id==='ofertas'))||(target===id)||((target==='perfil'||target==='cvs')&&id==='profileArea');
   $(id).classList.toggle('screen-hidden',!visible);
  }
@@ -361,6 +374,14 @@ document.querySelectorAll('.site-nav [data-screen]').forEach(a=>a.addEventListen
  window.scrollTo({top:0,behavior:'smooth'});
 }));
 window.addEventListener('hashchange',()=>{if(user)navigate(location.hash.slice(1))});
+$('jdForm').onsubmit=e=>{
+ e.preventDefault();
+ const title=$('jdTitle').value.trim(),company=$('jdCompany').value.trim()||'Empresa no informada',description=$('jdDescription').value.trim();
+ if(title.length<4||description.length<80)return note('Completá un título y al menos 80 caracteres de descripción y requisitos.',true);
+ const job={title,company,description_text:description,language_status:$('jdLanguage').value,geography_status:$('jdGeo').value,ats_found:extractJDKeywords(title+' '+description),salary_text:null,published_at:null};
+ $('jdResult').innerHTML=adviceHTML(job)+'<p class="helper">Análisis de un texto que pegaste: no es una oferta verificada por Radar Laboral y no se ha creado ninguna candidatura.</p>';
+ $('jdResult').scrollIntoView({behavior:'smooth',block:'start'});
+};
 $('autoForm').onsubmit=async e=>{
  e.preventDefault();
  if(!$('autoConsent').checked)return note('Primero confirmá que comprendés los límites y que no se envían postulaciones.',true);
