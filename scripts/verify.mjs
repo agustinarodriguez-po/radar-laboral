@@ -48,4 +48,15 @@ for(const id of ['cvEditor','cvEditForm','cvEditorName','cvEditorProfile','cvEdi
 }
 if(!js.includes("$('cvEditForm').onsubmit"))throw new Error('No está conectado el botón de editar currículum');
 if(js.includes("prompt('Nombre para identificar este CV:"))throw new Error('Edición antigua de CV todavía activa');
+
+// El acceso a portales argentinos no debe confundirse con extracción automática.
+for(const id of ['portales','portalRole','portal-computrabajo','portal-indeed','portal-linkedin','portal-bumeran']){
+ if(!declared.has(id))throw new Error('Falta el acceso a portal argentino: '+id);
+}
+if(!js.includes('function renderPortalLinks(')||!js.includes('PORTAL_COMPUTRABAJO')){
+ throw new Error('No funciona la elección de portal según el perfil');
+}
+if(!html.includes('Búsqueda externa, no automatizada')){
+ throw new Error('Falta aclarar que estos portales no están integrados a la API');
+}
 console.log('QA básico aprobado: sintaxis del JavaScript, '+declared.size+' elementos HTML y '+selected.length+' referencias de controles verificadas.');
