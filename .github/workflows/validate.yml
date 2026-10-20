@@ -18,5 +18,7 @@ jobs:
         run: node scripts/test-language.mjs
       - name: Validar interfaz Radar 2.0 y seguridad Auto Apply
         run: node scripts/test-workspace.mjs
+      - name: Validar asesor personal y preferencias laborales
+        run: node scripts/test-career-assistant.mjs
       - name: Comprobar API Himalayas en vivo
         run: node scripts/smoke-himalayas.mjs
