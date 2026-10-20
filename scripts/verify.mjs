@@ -42,4 +42,10 @@ for(const id of ['data-cv-edit','data-cv-delete','chooseCV','previewSelectedCV']
 }
 if(!js.includes('profile_type:profile')||!js.includes('display_name:name'))throw new Error('La carga no guarda nombre y categoría del CV');
 if(!js.includes('cvs.find(c=>c.id===cv)'))throw new Error('La autorización no asocia la versión seleccionada');
+
+for(const id of ['cvEditor','cvEditForm','cvEditorName','cvEditorProfile','cvEditorSave','cvEditorCancel']){
+ if(!declared.has(id))throw new Error('Falta el editor de CV: '+id);
+}
+if(!js.includes("$('cvEditForm').onsubmit"))throw new Error('No está conectado el botón de editar currículum');
+if(js.includes("prompt('Nombre para identificar este CV:"))throw new Error('Edición antigua de CV todavía activa');
 console.log('QA básico aprobado: sintaxis del JavaScript, '+declared.size+' elementos HTML y '+selected.length+' referencias de controles verificadas.');
