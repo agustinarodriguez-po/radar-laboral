@@ -41,6 +41,22 @@
 </form>
 <div id="cvCount" class="helper" aria-live="polite"></div><div id="cvList"></div><hr><h3>Fuentes adicionales</h3><p class="small">Agregá identificadores de bolsas de empresas en Greenhouse o Lever.</p><form id="sourceForm"><label>Proveedor<select id="provider"><option value="greenhouse">Greenhouse</option><option value="lever">Lever</option></select></label><label>Identificador de la empresa<input id="slug" pattern="[a-z0-9-]{2,60}" placeholder="empresa" required></label><button>Agregar fuente</button></form><div id="sources"></div></section></div>
 <section class="card" id="historial"><h2>Historial de búsquedas</h2><div id="searchHistory" class="small"></div><hr><h2>Historial de aprobaciones</h2><p class="small">Una aprobación NO envía el CV. La apertura de un formulario tampoco confirma el envío.</p><div id="history"></div></section></section></main>
+<dialog id="cvEditor" aria-labelledby="cvEditorTitle">
+<h2 id="cvEditorTitle">Editar currículum</h2>
+<p class="small">Podés cambiar el nombre y perfil sin modificar el documento original.</p>
+<form id="cvEditForm">
+<input id="cvEditorId" type="hidden">
+<label>Nombre del CV<input id="cvEditorName" maxlength="100" required></label>
+<label>Perfil profesional<select id="cvEditorProfile" required>
+<option value="administracion">Administración / Back Office</option>
+<option value="procesos">Procesos / Operaciones</option>
+<option value="customer">Customer Success</option>
+<option value="soporte_funcional">Soporte / Análisis funcional</option>
+<option value="general">General</option>
+<option value="otro">Otro perfil</option>
+</select></label>
+<div class="row"><button type="submit" id="cvEditorSave">Guardar cambios</button><button type="button" class="secondary" id="cvEditorCancel">Cancelar</button></div>
+</form></dialog>
 <dialog id="detail"><div class="row between"><h2 id="detailTitle">Oferta</h2><button id="close" class="secondary">Cerrar</button></div><div id="detailBody"></div></dialog>
 <script type="module">
 import {createClient} from 'https://esm.sh/@supabase/supabase-js@2.57.0';
@@ -133,19 +149,23 @@ $('cvList').innerHTML=cvs.map(c=>{
  document.querySelectorAll('[data-source-remove]').forEach(b=>b.addEventListener('click',()=>removeSource(b.dataset.sourceRemove)));
 }
 async function removeEvidence(id){if(!confirm('¿Quitar esta habilidad confirmada? Dejará de contar en próximas búsquedas.'))return;const {error}=await sb.from('experience_evidence').delete().eq('user_id',user.id).eq('id',id);if(error)return fail(error);await refresh();note('Evidencia quitada. Ejecutá una nueva búsqueda para recalcular ATS.')}
-async function editCV(id){
+function editCV(id){
  const c=cvs.find(x=>x.id===id);if(!c)return;
- const name=prompt('Nombre para identificar este CV:',cvTitle(c));
- if(name===null)return;
- if(!name.trim()||name.trim().length>100)return note('El nombre debe tener entre 1 y 100 caracteres.',true);
- const choices=Object.entries(CV_PROFILES).map(([key,value])=>key+' = '+value).join('\n');
- const type=prompt('Elegí el perfil escribiendo su código:\n'+choices,c.profile_type||'general');
- if(type===null)return;
- if(!Object.hasOwn(CV_PROFILES,type.trim()))return note('Perfil no reconocido. Usá uno de los códigos mostrados.',true);
- try{const {error}=await sb.from('cv_files').update({display_name:name.trim(),profile_type:type.trim()}).eq('id',id).eq('user_id',user.id);
- if(error)throw error;await refresh();note('Nombre y perfil del CV actualizados. El archivo original no cambió.');
- }catch(e){fail(e)}
+ $('cvEditorId').value=c.id;
+ $('cvEditorName').value=cvTitle(c);
+ $('cvEditorProfile').value=c.profile_type||'general';
+ $('cvEditor').showModal();
 }
+$('cvEditorCancel').onclick=()=>$('cvEditor').close();
+$('cvEditForm').onsubmit=async e=>{
+ e.preventDefault();
+ const id=$('cvEditorId').value,name=$('cvEditorName').value.trim(),profile=$('cvEditorProfile').value;
+ if(!name||name.length>100||!Object.hasOwn(CV_PROFILES,profile))return note('Revisá el nombre y el perfil profesional.',true);
+ const b=$('cvEditorSave');b.disabled=true;
+ try{const {error}=await sb.from('cv_files').update({display_name:name,profile_type:profile}).eq('user_id',user.id).eq('id',id);
+ if(error)throw error;await refresh();$('cvEditor').close();note('CV actualizado. El archivo original no cambió.');
+ }catch(err){fail(err)}finally{b.disabled=false}
+};
 async function deleteCV(id){
  const c=cvs.find(x=>x.id===id);if(!c)return;
  if(approvals.some(a=>a.cv_id===id))return note('No se puede eliminar un CV que ya está vinculado a una aprobación de postulación.',true);
