@@ -154,7 +154,16 @@ function note(s,bad=false){$('message').textContent=s;$('message').classList.rem
 function fail(e){let msg=e?.message||String(e);const messages={'Signup requires a valid password':'Ingresá una contraseña válida de al menos 8 caracteres.','Password should be at least 6 characters':'La contraseña debe tener al menos 8 caracteres.','Invalid login credentials':'El correo o la contraseña no son correctos.','Email not confirmed':'Tenés que confirmar tu correo antes de ingresar.','User already registered':'Ya existe una cuenta con ese correo. Probá ingresar.','Anonymous sign-ins are disabled':'No se enviaron correctamente los datos de registro. Completá correo y contraseña. Si ya tenés una cuenta, utilizá Ingresar.'};note(messages[msg]||msg,true)}
 function setAuth(yes){$('auth').classList.toggle('hide',yes);$('app').classList.toggle('hide',!yes);$('logout').classList.toggle('hide',!yes);$('who').textContent=yes?user.email:''}
 async function get(table,sort){const {data,error}=await sb.from(table).select('*').order(sort,{ascending:false}).limit(900);if(error)throw error;return data||[]}
-async function refresh(){[jobs,cvs,approvals,sources,runs,evidence]=await Promise.all([get('jobs','checked_at'),get('cv_files','uploaded_at'),get('application_approvals','approved_at'),get('job_sources','created_at'),get('search_runs','started_at'),get('experience_evidence','created_at')]);render()}
+async function refresh(){
+ const [allJobs,allCVs,allApprovals,allSources,allRuns,allEvidence,allPipeline,autoQuery]=await Promise.all([
+ get('jobs','checked_at'),get('cv_files','uploaded_at'),get('application_approvals','approved_at'),
+ get('job_sources','created_at'),get('search_runs','started_at'),get('experience_evidence','created_at'),
+ get('radar_job_pipeline','updated_at'),sb.from('radar_automation_settings').select('*').eq('user_id',user.id).maybeSingle()
+ ]);
+ if(autoQuery.error)throw autoQuery.error;
+ jobs=allJobs;cvs=allCVs;approvals=allApprovals;sources=allSources;runs=allRuns;evidence=allEvidence;pipeline=allPipeline;autoSettings=autoQuery.data;
+ render();
+}
 async function signIn(){
  const {data:{session},error:sessionError}=await sb.auth.getSession();
  if(sessionError)throw sessionError;
@@ -168,6 +177,7 @@ async function signIn(){
  if($('allowRemote'))$('allowRemote').checked=p.remote_argentina!==false;
  if($('allowHybrid'))$('allowHybrid').checked=p.hybrid_mar_del_plata!==false;
  await refresh();
+ navigate(location.hash.replace('#','')||'ofertas');
 }
 function ageLabel(d){
  if(!d)return 'Fecha no informada';
@@ -184,6 +194,7 @@ function render(){
  const fresh=spanishJobs.filter(j=>j.published_at && Date.now()-new Date(j.published_at).getTime()<=86400000 && Date.now()-new Date(j.published_at).getTime()>=0);
  const disabled=spanishJobs.filter(j=>j.geography_status==='excluded').length;
  let visible=spanishJobs.filter(j=>{
+  if(pipeline.some(p=>p.job_id===j.id && (p.stage==='archived'||p.stage==='rejected')))return false;
   let d=$('dateFilter').value, e=$('eligibility').value;
   if(d!=='all'&&(!j.published_at||Date.now()-new Date(j.published_at).getTime()<0||Date.now()-new Date(j.published_at).getTime()>Number(d)*36e5))return false;
   if(e==='viable'&&(j.geography_status==='excluded'||j.language_status==='excluded'))return false;
@@ -201,7 +212,7 @@ function render(){
   const h=j.published_at&&(Date.now()-new Date(j.published_at).getTime())/36e5;
   const recent=h>=0&&h<=24,week=h>=0&&h<=168;
   const incompatible=j.geography_status==='excluded'||j.language_status==='excluded';
-  return '<article class="job '+(recent?'fresh':'')+'"><div class="row between"><div><h3>'+html(j.title)+'</h3><p>'+html(j.company)+' · '+html(j.location_text||'Ubicación no informada')+'</p></div><button class="secondary" type="button" data-job="'+html(j.id)+'">Ver requisitos y ATS</button></div><div><span class="tag '+(recent?'ok':week?'warn':'')+'">'+html(ageLabel(j.published_at))+'</span><span class="tag '+(j.geography_status==='confirmed'?'ok':j.geography_status==='excluded'?'bad':'warn')+'">Argentina: '+html(statusLabel(j.geography_status))+'</span><span class="tag '+(j.language_status==='excluded'?'bad':j.language_status==='confirmed'?'ok':'warn')+'">Aviso en español</span>'+(incompatible?'<span class="tag bad">No cumple un requisito</span>':'')+'</div><p class="small">Fuente: '+(j.source==='himalayas'?'<a href="https://himalayas.app" target="_blank" rel="noopener noreferrer">Himalayas ↗</a>':html(j.source))+' · Última comprobación: '+html(fmt(j.checked_at))+' · Afinidad orientativa: '+(j.suitability_score||0)+'/100'+(j.salary_text?' · Salario publicado: '+html(j.salary_text):' · Salario no informado')+'</p><p class="small">'+html(j.eligibility_reason||'Revisá las condiciones originales')+'</p><p><a class="original" target="_blank" rel="noopener noreferrer" href="'+html(j.url)+'">Abrir oferta original ↗</a></p></article>'
+  return '<article class="job '+(recent?'fresh':'')+'"><div class="row between"><div><h3>'+html(j.title)+'</h3><p>'+html(j.company)+' · '+html(j.location_text||'Ubicación no informada')+'</p></div><button class="secondary" type="button" data-job="'+html(j.id)+'">Ver requisitos y ATS</button></div><div><span class="tag '+(recent?'ok':week?'warn':'')+'">'+html(ageLabel(j.published_at))+'</span><span class="tag '+(j.geography_status==='confirmed'?'ok':j.geography_status==='excluded'?'bad':'warn')+'">Argentina: '+html(statusLabel(j.geography_status))+'</span><span class="tag '+(j.language_status==='excluded'?'bad':j.language_status==='confirmed'?'ok':'warn')+'">Aviso en español</span>'+(incompatible?'<span class="tag bad">No cumple un requisito</span>':'')+'</div><p class="small">Fuente: '+(j.source==='himalayas'?'<a href="https://himalayas.app" target="_blank" rel="noopener noreferrer">Himalayas ↗</a>':html(j.source))+' · Última comprobación: '+html(fmt(j.checked_at))+' · Afinidad orientativa: '+(j.suitability_score||0)+'/100'+(j.salary_text?' · Salario publicado: '+html(j.salary_text):' · Salario no informado')+'</p><p class="small">'+html(j.eligibility_reason||'Revisá las condiciones originales')+'</p><div class="job-actions"><button type="button" class="secondary" data-preview="'+html(j.id)+'">Vista rápida</button><button type="button" class="secondary" data-save="'+html(j.id)+'">'+(pipeline.some(p=>p.job_id===j.id&&p.stage!=='archived')?'Guardada ✓':'Guardar ♡')+'</button><button type="button" class="secondary" data-skip="'+html(j.id)+'">Pasar</button></div><p><a class="original" target="_blank" rel="noopener noreferrer" href="'+html(j.url)+'">Abrir oferta original ↗</a></p></article>'
  }).join('')||'<p class="helper">No hay ofertas con estos filtros. Si elegiste «24 horas», puede que ninguna haya sido publicada hoy. Probá «Todas» y «Sin incompatibilidades detectadas». No inventamos publicaciones para completar la lista.</p>';
  $('evidenceList').innerHTML=evidence.map(e=>'<div class="row between" style="border-bottom:1px solid #dae5ec;padding:9px 0"><span><strong>'+html(e.skill)+'</strong><br>'+html(e.evidence)+'<br><span class="tag ok">Declarada por vos</span></span><button class="secondary" type="button" data-evidence-remove="'+html(e.id)+'">Quitar</button></div>').join('')||'<p>No hay habilidades con evidencia confirmada. Las coincidencias ATS quedan por revisar.</p>';
  $('cvCount').textContent=cvs.length+' currículum'+(cvs.length===1?'':'s')+' guardado'+(cvs.length===1?'':'s')+'. Podés agregar tantos perfiles y versiones como necesites, dentro del espacio disponible.';
@@ -212,12 +223,104 @@ $('cvList').innerHTML=cvs.map(c=>{
  $('sources').innerHTML=sources.map(s=>'<div class="row between"><span class="small">'+html(s.provider)+' / '+html(s.slug)+'</span><button class="secondary" type="button" data-source-remove="'+html(s.id)+'">Quitar</button></div>').join('')||'<p class="small">Todavía no agregaste empresas. La búsqueda general igual puede ejecutarse.</p>';
  $('searchHistory').innerHTML=runs.slice(0,8).map(x=>'<p>🕒 '+html(fmt(x.started_at))+' · '+(x.finished_at?html(String(x.found_count))+' registros nuevos o actualizados':'En progreso o sin finalizar')+(x.source_summary?.errors?.length?' · '+x.source_summary.errors.length+' fuentes con errores':'')+'</p>').join('')||'<p>No hay búsquedas registradas.</p>';
  $('history').innerHTML=approvals.map(a=>{let j=jobs.find(j=>j.id===a.job_id);return '<p class="small">'+html(j?.company||'Oferta archivada')+' · '+html(j?.title||'')+' · Aprobada '+fmt(a.approved_at)+' · <strong>'+(a.user_reported_sent_at?'Envío declarado por vos, sin verificar':'CV no enviado automáticamente')+'</strong></p>'}).join('')||'<p class="small">No hay aprobaciones.</p>';
+ renderPreview(visible);
+ renderPipeline();
+ renderAutomationForm();
+ document.querySelectorAll('[data-preview]').forEach(b=>b.addEventListener('click',()=>{previewJobId=b.dataset.preview;renderPreview(visible)}));
+ document.querySelectorAll('[data-save]').forEach(b=>b.addEventListener('click',()=>updatePipeline(b.dataset.save,'saved')));
+ document.querySelectorAll('[data-skip]').forEach(b=>b.addEventListener('click',()=>updatePipeline(b.dataset.skip,'archived')));
  document.querySelectorAll('[data-job]').forEach(b=>b.addEventListener('click',()=>openJob(b.dataset.job)));
  document.querySelectorAll('[data-cv]').forEach(b=>b.addEventListener('click',()=>viewCV(b.dataset.cv)));
  document.querySelectorAll('[data-cv-edit]').forEach(b=>b.addEventListener('click',()=>editCV(b.dataset.cvEdit)));
  document.querySelectorAll('[data-cv-delete]').forEach(b=>b.addEventListener('click',()=>deleteCV(b.dataset.cvDelete)));document.querySelectorAll('[data-evidence-remove]').forEach(b=>b.addEventListener('click',()=>removeEvidence(b.dataset.evidenceRemove)));
  document.querySelectorAll('[data-source-remove]').forEach(b=>b.addEventListener('click',()=>removeSource(b.dataset.sourceRemove)));
 }
+
+const STAGE_LABELS={saved:'Guardada',reviewing:'En revisión',ready:'CV aprobado',applied:'Enviada (declarada)',interview:'Entrevista',offer:'Oferta recibida',rejected:'Descartada',archived:'Pasada'};
+const MAIN_SCREENS=['ofertas','pipeline','portales','perfil','cvs','automation','historial'];
+function navigate(key){
+ const target=MAIN_SCREENS.includes(key)?key:'ofertas';
+ for(const id of ['overview','ofertas','pipeline','automation','portales','profileArea','historial']){
+  const visible=(target==='ofertas'&&(id==='overview'||id==='ofertas'))||(target===id)||((target==='perfil'||target==='cvs')&&id==='profileArea');
+  $(id).classList.toggle('screen-hidden',!visible);
+ }
+ $('perfil').classList.toggle('screen-hidden',target!=='perfil');
+ $('cvs').classList.toggle('screen-hidden',target!=='cvs');
+ document.querySelectorAll('.site-nav [data-screen]').forEach(a=>{
+  const active=a.dataset.screen===target;a.classList.toggle('active',active);
+  if(active)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');
+ });
+ if(user&&target==='ofertas')renderPreview();
+}
+async function updatePipeline(jobId,stage){
+ if(!user)return note('Ingresá con tu cuenta.',true);
+ const job=jobs.find(j=>j.id===jobId);
+ if(!job||job.language_status!=='confirmed'||job.geography_status==='excluded')return note('Esta vacante no cumple los requisitos para agregarla al seguimiento.',true);
+ if(!Object.hasOwn(STAGE_LABELS,stage))return note('Estado de candidatura inválido.',true);
+ const previous=pipeline.find(x=>x.job_id===jobId);
+ if(stage==='archived'&&!confirm('¿Pasar esta oferta? Seguirá registrada en tus candidaturas como archivada.'))return;
+ if(stage==='applied'&&!confirm('¿Ya enviaste personalmente la postulación desde el portal original? No se enviará ninguna solicitud desde Radar Laboral.'))return;
+ if(['interview','offer'].includes(stage)&&!(previous?.user_reported_applied_at||approvals.some(a=>a.job_id===jobId&&a.user_reported_sent_at)))return note('Primero confirmá que enviaste la postulación antes de registrar entrevistas u ofertas.',true);
+ try{
+  const row={user_id:user.id,job_id:jobId,stage,updated_at:new Date().toISOString()};
+  if(stage==='applied')row.user_reported_applied_at=new Date().toISOString();
+  const {error}=previous?
+    await sb.from('radar_job_pipeline').update(row).eq('user_id',user.id).eq('job_id',jobId):
+    await sb.from('radar_job_pipeline').insert(row);
+  if(error)throw error;
+  await refresh();note('Candidatura actualizada: '+STAGE_LABELS[stage]+'. No se envió ningún CV.');
+ }catch(err){fail(err)}
+}
+function renderPreview(visibleJobs){
+ const pool=(visibleJobs||jobs.filter(j=>j.language_status==='confirmed'&&j.geography_status!=='excluded'&&!pipeline.some(p=>p.job_id===j.id&&['archived','rejected'].includes(p.stage))));
+ const j=pool.find(x=>x.id===previewJobId)||pool[0];
+ const target=$('jobPreview');if(!target)return;
+ if(!j){previewJobId=null;target.innerHTML='<span class="rv-kicker">Vista previa</span><div class="rv-empty"><strong>Todavía no hay ofertas compatibles.</strong><p>Ejecutá una búsqueda o modificá los filtros. No mostramos anuncios ficticios.</p></div>';return}
+ previewJobId=j.id;
+ target.innerHTML='<span class="rv-kicker">DETALLE DE LA OFERTA</span><h3>'+html(j.title)+'</h3><p><strong>'+html(j.company)+'</strong></p><div class="rv-chips"><span class="tag ok">Aviso en español</span><span class="tag '+(j.geography_status==='confirmed'?'ok':'warn')+'">Argentina: '+html(statusLabel(j.geography_status))+'</span></div><p><strong>Modalidad:</strong> '+html(j.location_text||'Sin datos')+'</p><p><strong>Publicado:</strong> '+html(ageLabel(j.published_at))+'</p><p><strong>Afinidad orientativa:</strong> '+html(j.suitability_score||0)+'/100</p><p>'+html(j.eligibility_reason||'La compatibilidad requiere verificación.')+'</p><p><strong>CV sugerido:</strong> '+html((suggestedCVProfile(j)&&CV_PROFILES[suggestedCVProfile(j)])||'Elegí según la oferta')+'</p><div class="preview-actions"><button id="previewDetails" type="button">Revisar requisitos y CV</button><button id="previewSave" class="secondary" type="button">♡ Guardar para después</button><a class="button secondary" href="'+html(j.url)+'" target="_blank" rel="noopener noreferrer">Abrir oferta original ↗</a></div><p class="small">El envío, si corresponde, se hace en el portal original. Tu CV no se transmite automáticamente.</p>';
+ $('previewDetails').onclick=()=>openJob(j.id);
+ $('previewSave').onclick=()=>updatePipeline(j.id,'saved');
+}
+function renderPipeline(){
+ const holder=$('pipelineBoard');if(!holder)return;
+ const groups=[{label:'Guardadas y por revisar',stages:['saved','reviewing']},{label:'CV aprobado',stages:['ready']},{label:'Enviadas',stages:['applied']},{label:'Seguimiento',stages:['interview','offer','rejected','archived']}];
+ const current=pipeline.filter(item=>jobs.some(j=>j.id===item.job_id&&j.language_status==='confirmed'));
+ $('pipelineCount').textContent=current.length+' candidaturas registradas. El estado «Enviada» es manual, no una confirmación de la plataforma de empleo.';
+ holder.innerHTML=groups.map(group=>{
+  const values=current.filter(p=>group.stages.includes(p.stage));
+  return '<div class="rv-board-col"><h3>'+html(group.label)+' <span class="tag">'+values.length+'</span></h3>'+
+   (values.map(p=>{
+    const j=jobs.find(x=>x.id===p.job_id);
+    const choices=Object.entries(STAGE_LABELS).map(([value,label])=>'<option value="'+html(value)+'"'+(p.stage===value?' selected':'')+'>'+html(label)+'</option>').join('');
+    return '<div class="rv-board-card"><h4>'+html(j?.title||'Oferta sin título')+'</h4><p>'+html(j?.company||'Empresa no informada')+'</p><p>'+html(STAGE_LABELS[p.stage]||'Sin estado')+'</p><label class="small">Cambiar estado<select data-stage-job="'+html(p.job_id)+'">'+choices+'</select></label><div class="row"><button type="button" class="secondary" data-pipeline-open="'+html(p.job_id)+'">Ver oferta</button></div></div>';
+   }).join('')||'<p class="small">Sin candidaturas en esta etapa.</p>')+'</div>';
+ }).join('');
+ holder.querySelectorAll('[data-stage-job]').forEach(el=>el.onchange=()=>updatePipeline(el.dataset.stageJob,el.value));
+ holder.querySelectorAll('[data-pipeline-open]').forEach(el=>el.onclick=()=>openJob(el.dataset.pipelineOpen));
+}
+function renderAutomationForm(){
+ $('autoPreparation').checked=autoSettings?.preparation_enabled===true;
+ $('autoDailyLimit').value=String(autoSettings?.daily_limit??3);
+}
+document.querySelectorAll('.site-nav [data-screen]').forEach(a=>a.addEventListener('click',e=>{
+ e.preventDefault();const target=a.dataset.screen;
+ history.replaceState(null,'','#'+target);navigate(target);
+ window.scrollTo({top:0,behavior:'smooth'});
+}));
+window.addEventListener('hashchange',()=>{if(user)navigate(location.hash.slice(1))});
+$('autoForm').onsubmit=async e=>{
+ e.preventDefault();
+ if(!$('autoConsent').checked)return note('Primero confirmá que comprendés los límites y que no se envían postulaciones.',true);
+ const limit=Number($('autoDailyLimit').value);
+ if(!Number.isInteger(limit)||limit<1||limit>10)return note('Elegí un límite válido entre 1 y 10.',true);
+ try{
+  const payload={user_id:user.id,preparation_enabled:$('autoPreparation').checked,daily_limit:limit,individual_approval_required:true,language:'es',auto_send_enabled:false,authorized_provider_codes:[],updated_at:new Date().toISOString()};
+  const {error}=await sb.from('radar_automation_settings').upsert(payload,{onConflict:'user_id'});
+  if(error)throw error;await refresh();
+  $('autoSaved').textContent='Preferencias guardadas. No se activó ningún envío ni búsqueda automática.';
+  note('Preferencias guardadas. Auto Apply continúa bloqueado hasta contar con integración autorizada.');
+ }catch(error){fail(error)}
+};
 async function removeEvidence(id){if(!confirm('¿Quitar esta habilidad confirmada? Dejará de contar en próximas búsquedas.'))return;const {error}=await sb.from('experience_evidence').delete().eq('user_id',user.id).eq('id',id);if(error)return fail(error);await refresh();note('Evidencia quitada. Ejecutá una nueva búsqueda para recalcular ATS.')}
 function editCV(id){
  const c=cvs.find(x=>x.id===id);if(!c)return;
