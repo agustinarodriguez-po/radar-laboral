@@ -32,6 +32,14 @@ La base de datos se documenta en `supabase/migrations/20261020_radar_v2.sql`. La
 - Este asistente es **un motor determinista de recomendaciones**, no un sistema de IA generativa y no predice el resultado de una selección. Antes de publicitar funciones de IA generativa habrá que implementar y probar un proveedor, permisos y privacidad explícitos.
 - No envía postulaciones ni CVs sin su aprobación individual. Auto Apply continúa bloqueado por restricciones de base de datos.
 
+## Diagnóstico de fuentes y mejora de búsqueda
+
+El sistema utiliza **cuatro APIs automáticas**: Get on Board, Himalayas, Jobicy y Arbeitnow. Greenhouse y Lever se consultan solo al agregar una empresa con identificador válido. Computrabajo, Indeed, LinkedIn, Bumeran, Glassdoor, Workana y WeRemoto son **accesos externos**, no extracción automática.
+
+Después de cada búsqueda se guarda un desglose por fuente: vacantes consultadas, en español, descartadas por inglés o idioma incierto, nuevos registros, actualizaciones e incidencias de la fuente. Los resultados de una fuente correctamente conectada pueden ser cero si no cumplen los filtros. Se puede filtrar el listado de ofertas por fuente sin desactivar el requisito de español.
+
+Ampliaciones: Himalayas consulta términos administrativos y de operaciones en español además de los ingleses relevantes, siempre con filtro de país Argentina; Get on Board identifica hasta ocho categorías pertinentes devueltas por su propia API. Esto mejora cobertura, **no garantiza un mínimo de vacantes**. No se modifican los datos de otras aplicaciones ni se añaden integraciones no autorizadas. Las estadísticas detalladas se generan en la siguiente búsqueda autenticada; el sistema no ejecuta búsquedas con sesión del usuario desde GitHub Actions.
+
 ## Estado real del MVP
 
 | Función | Estado |
