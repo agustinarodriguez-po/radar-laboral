@@ -30,4 +30,16 @@ for (const id of ['evidenceForm','evidenceList','evidenceSkill','evidenceText','
 if (!js.includes("application_approvals") || !js.includes("user_reported_sent_at")) {
  throw new Error('Falta trazabilidad de la postulación manual');
 }
+
+for(const id of ['cvProfile','cvDisplayName','cvCount','uploadButton','cvFile']){
+ if(!declared.has(id))throw new Error('Control de múltiples CV ausente: '+id);
+}
+for(const method of ['editCV','deleteCV','viewCV','cvLabel','cvTitle','suggestedCVProfile']){
+ if(!new RegExp('(?:async\\s+)?function\\s+'+method+'\\s*\\(').test(js))throw new Error('Función de currículums ausente: '+method);
+}
+for(const id of ['data-cv-edit','data-cv-delete','chooseCV','previewSelectedCV']){
+ if(!js.includes(id))throw new Error('Flujo de selección CV ausente: '+id);
+}
+if(!js.includes('profile_type:profile')||!js.includes('display_name:name'))throw new Error('La carga no guarda nombre y categoría del CV');
+if(!js.includes('cvs.find(c=>c.id===cv)'))throw new Error('La autorización no asocia la versión seleccionada');
 console.log('QA básico aprobado: sintaxis del JavaScript, '+declared.size+' elementos HTML y '+selected.length+' referencias de controles verificadas.');
