@@ -109,21 +109,26 @@ async function jobicy():Promise<Offer[]>{
 async function getonbrd():Promise<Offer[]>{
  const v=await get('https://www.getonbrd.com/api/v0/categories');
  if(!Array.isArray(v.data))throw Error('Categorías no disponibles');
- const ids=v.data.filter((x:any)=>/administr|support|soporte|business|customer|operations|operac|finance|management|other/i.test(String(x.attributes?.name||x.id))).map((x:any)=>String(x.id)).filter(slugOK).slice(0,5);
- if(!ids.length)throw Error('Ninguna categoría compatible');
- const batches=await Promise.allSettled(ids.map(async id=>{
-  const b=await get('https://www.getonbrd.com/api/v0/categories/'+id+'/jobs?per_page=120&page=1&expand[]=company');
-  if(!Array.isArray(b.data))throw Error('Vacantes no disponibles');
+ // No depender del orden de la API: consultar las categorías que mejor se ajustan al perfil.
+ const priority=['operations-management','customer-support','technical-support','innovation-agile','sales'];
+ const candidates=v.data.map((x:any)=>String(x.id||'')).filter(slugOK);
+ const ids=priority.filter(id=>candidates.includes(id));
+ if(!ids.length)throw Error('Get on Board no ofrece las categorías esperadas');
+ const batches=await Promise.allSettled(ids.flatMap(id=>[1,2].map(async page=>{
+  const b=await get('https://www.getonbrd.com/api/v0/categories/'+id+'/jobs?per_page=120&page='+page+'&expand[]=company');
+  if(!Array.isArray(b.data))throw Error('Vacantes no disponibles: '+id+', página '+page);
   return b.data.filter((x:any)=>x.attributes?.remote===true && isRelevant(String(x.attributes.title||''))).flatMap((x:any)=>{
-    const a=x.attributes||{},url=String(x.links?.public_url||'');
-    if(!validURL(url)||!/^(\w+\.)?getonbrd\.(com|cl|com\.ar)$/.test(new URL(url).hostname))return [];
-    const company=a.company?.data?.attributes?.name||a.company?.data?.id||'Empresa en Get on Board';
-    return [{source:'getonbrd',source_slug:id,external_id:String(x.id),company:String(company),title:String(a.title),location_text:String(a.remote_zone||'')+' '+(Array.isArray(a.countries)?a.countries.join(', '):''),workplace:'remote',url,apply_url:url,description_text:strip(String(a.description||'')+' '+String(a.functions||'')+' '+String(a.desirable||'')),published_at:iso(a.published_at),updated_at_source:null}];
+   const a=x.attributes||{},url=String(x.links?.public_url||'');
+   if(!validURL(url)||!/^(?:[\w-]+\.)?getonbrd\.(?:com|cl|com\.ar)$/.test(new URL(url).hostname))return [];
+   const company=a.company?.data?.attributes?.name||a.company?.data?.id||'Empresa en Get on Board';
+   return [{source:'getonbrd',source_slug:id,external_id:String(x.id),company:String(company),title:String(a.title),location_text:String(a.remote_zone||'')+' '+(Array.isArray(a.countries)?a.countries.join(', '):''),workplace:'remote',url,apply_url:url,description_text:strip(String(a.description||'')+' '+String(a.functions||'')+' '+String(a.desirable||'')),published_at:iso(a.published_at),updated_at_source:null}];
   });
- }));
- const good=batches.filter((x):x is PromiseFulfilledResult<Offer[]>=>x.status==='fulfilled');
- if(!good.length)throw Error('Error consultando categorías');
- return good.flatMap(x=>x.value);
+ })));
+ const successful=batches.filter((x):x is PromiseFulfilledResult<Offer[]>=>x.status==='fulfilled');
+ if(!successful.length)throw Error('Fallaron las consultas a categorías de Get on Board');
+ const unique=new Map<string,Offer>();
+ for(const item of successful.flatMap(x=>x.value))if(!unique.has(item.external_id))unique.set(item.external_id,item);
+ return Array.from(unique.values());
 }
 async function greenhouse(id:string):Promise<Offer[]>{
  const [v,board]=await Promise.all([get('https://boards-api.greenhouse.io/v1/boards/'+id+'/jobs?content=true'),get('https://boards-api.greenhouse.io/v1/boards/'+id)]);
