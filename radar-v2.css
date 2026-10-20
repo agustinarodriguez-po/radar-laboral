@@ -93,3 +93,13 @@ button.secondary:hover,.button.secondary:hover{background:#e1dcfb}
 #analizar .split{grid-template-columns:1fr 1fr}
 #analizar textarea{font-size:14px;line-height:1.6}
 @media(max-width:760px){#analizar .split{grid-template-columns:1fr}}
+
+/* Reporte de fuentes: diferencia APIs consultadas de anuncios disponibles en español */
+.source-report-panel{border:1px solid #e4e5f5;background:#fafaff;border-radius:12px;padding:12px 15px;margin:13px 0}
+.source-report-panel summary{font-weight:750;cursor:pointer;color:#3f3a83;font-size:14px}
+.source-report-panel>p{margin:8px 0;color:#586682}
+.source-report-list{display:grid;gap:6px;margin:12px 0 0}
+.source-report-entry{display:flex;flex-wrap:wrap;gap:6px;align-items:center;background:white;border:1px solid #ebeaf5;border-radius:10px;padding:10px 12px;font-size:12px}
+.source-report-entry strong{min-width:138px;font-size:13px;color:#292d50}
+.source-report-entry .tag{margin:0}
+@media(max-width:760px){.source-report-entry{align-items:flex-start}.source-report-entry strong{flex-basis:100%}}
