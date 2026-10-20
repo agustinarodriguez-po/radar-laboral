@@ -21,7 +21,25 @@
 <label><input id="evidenceConfirm" type="checkbox" style="width:auto" required> Confirmo que esta experiencia es real.</label>
 <button>Agregar habilidad confirmada</button></form>
 <div id="evidenceList" class="small"></div></section>
-<section class="card" id="cvs"><h2>Mis currículums</h2><p class="small">PDF, Word; máximo 8 MB. Permanecen en un almacenamiento privado, nunca en GitHub.</p><form id="uploadForm"><input id="cvFile" required type="file" accept=".pdf,.doc,.docx"><button style="margin-top:14px">Guardar CV</button></form><div id="cvList"></div><hr><h3>Fuentes adicionales</h3><p class="small">Agregá identificadores de bolsas de empresas en Greenhouse o Lever.</p><form id="sourceForm"><label>Proveedor<select id="provider"><option value="greenhouse">Greenhouse</option><option value="lever">Lever</option></select></label><label>Identificador de la empresa<input id="slug" pattern="[a-z0-9-]{2,60}" placeholder="empresa" required></label><button>Agregar fuente</button></form><div id="sources"></div></section></div>
+<section class="card" id="cvs"><h2>Mis currículums</h2>
+<p class="small">Guardá 3, 4 o más versiones según el puesto. Podés tener varios CV del mismo perfil. Todos permanecen privados en Supabase; el límite depende del espacio disponible. Máximo 8 MB por archivo.</p>
+<form id="uploadForm">
+<label>¿Para qué puestos es este CV?
+<select id="cvProfile" required>
+<option value="administracion">Analista administrativa / Back Office</option>
+<option value="procesos">Analista de procesos / Operaciones</option>
+<option value="customer">Customer Success / Atención a clientes</option>
+<option value="soporte_funcional">Soporte funcional / Analista funcional</option>
+<option value="general">General</option>
+<option value="otro">Otro perfil</option>
+</select></label>
+<label>Nombre para identificar la versión
+<input id="cvDisplayName" maxlength="100" required placeholder="Ej.: Administrativo - versión octubre"></label>
+<label>Archivo PDF o Word
+<input id="cvFile" required type="file" accept=".pdf,.doc,.docx"></label>
+<button id="uploadButton" type="submit">Agregar currículum</button>
+</form>
+<div id="cvCount" class="helper" aria-live="polite"></div><div id="cvList"></div><hr><h3>Fuentes adicionales</h3><p class="small">Agregá identificadores de bolsas de empresas en Greenhouse o Lever.</p><form id="sourceForm"><label>Proveedor<select id="provider"><option value="greenhouse">Greenhouse</option><option value="lever">Lever</option></select></label><label>Identificador de la empresa<input id="slug" pattern="[a-z0-9-]{2,60}" placeholder="empresa" required></label><button>Agregar fuente</button></form><div id="sources"></div></section></div>
 <section class="card" id="historial"><h2>Historial de búsquedas</h2><div id="searchHistory" class="small"></div><hr><h2>Historial de aprobaciones</h2><p class="small">Una aprobación NO envía el CV. La apertura de un formulario tampoco confirma el envío.</p><div id="history"></div></section></section></main>
 <dialog id="detail"><div class="row between"><h2 id="detailTitle">Oferta</h2><button id="close" class="secondary">Cerrar</button></div><div id="detailBody"></div></dialog>
 <script type="module">
@@ -30,6 +48,24 @@ import {CONFIG} from './config.js';
 const $=id=>document.getElementById(id),html=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])),fmt=s=>s?new Date(s).toLocaleString('es-AR'):'No informada';
 const sb=createClient(CONFIG.supabaseUrl,CONFIG.supabasePublishableKey);let user=null,jobs=[],cvs=[],approvals=[],sources=[],runs=[],evidence=[];
 const defaults={roles:'Analista administrativa, Back Office, Analista de procesos, Analista funcional junior, Customer Success, Soporte funcional',skills:'Excel, Google Sheets, Jira, Confluence, cobranzas, liquidaciones, procesos, historias de usuario, documentación funcional, facturación, reportes, gestión de clientes',preferences:'Remoto desde Argentina o híbrido solo en Mar del Plata. Sin inglés obligatorio. Salario pretendido orientativo ARS 1.500.000.'};
+const CV_PROFILES={
+ administracion:'Administración / Back Office',
+ procesos:'Procesos / Operaciones',
+ customer:'Customer Success',
+ soporte_funcional:'Soporte / Análisis funcional',
+ general:'General',
+ otro:'Otro perfil'
+};
+function cvLabel(c){return CV_PROFILES[c?.profile_type]||CV_PROFILES.general}
+function cvTitle(c){return c?.display_name?.trim()||c?.file_name||'CV sin nombre'}
+function suggestedCVProfile(job){
+ const title=(job?.title||'').toLowerCase();
+ if(/analista funcional|functional analyst|business analyst|soporte funcional|application support|soporte técnico|technical support/.test(title))return 'soporte_funcional';
+ if(/process|procesos|operations|operaciones|reconciliation|conciliaci[oó]n/.test(title))return 'procesos';
+ if(/customer success|customer support|client success|customer experience|customer service|atenci[oó]n al cliente/.test(title))return 'customer';
+ if(/administrativ|administraci[oó]n|back.?office|billing|facturaci[oó]n|cobranzas|collections/.test(title))return 'administracion';
+ return null;
+}
 function note(s,bad=false){$('message').textContent=s;$('message').classList.remove('hide');$('message').classList.toggle('error',bad)}
 function fail(e){let msg=e?.message||String(e);const messages={'Signup requires a valid password':'Ingresá una contraseña válida de al menos 8 caracteres.','Password should be at least 6 characters':'La contraseña debe tener al menos 8 caracteres.','Invalid login credentials':'El correo o la contraseña no son correctos.','Email not confirmed':'Tenés que confirmar tu correo antes de ingresar.','User already registered':'Ya existe una cuenta con ese correo. Probá ingresar.','Anonymous sign-ins are disabled':'No se enviaron correctamente los datos de registro. Completá correo y contraseña. Si ya tenés una cuenta, utilizá Ingresar.'};note(messages[msg]||msg,true)}
 function setAuth(yes){$('auth').classList.toggle('hide',yes);$('app').classList.toggle('hide',!yes);$('logout').classList.toggle('hide',!yes);$('who').textContent=yes?user.email:''}
@@ -82,15 +118,47 @@ function render(){
   return '<article class="job '+(recent?'fresh':'')+'"><div class="row between"><div><h3>'+html(j.title)+'</h3><p>'+html(j.company)+' · '+html(j.location_text||'Ubicación no informada')+'</p></div><button class="secondary" type="button" data-job="'+html(j.id)+'">Ver requisitos y ATS</button></div><div><span class="tag '+(recent?'ok':week?'warn':'')+'">'+html(ageLabel(j.published_at))+'</span><span class="tag '+(j.geography_status==='confirmed'?'ok':j.geography_status==='excluded'?'bad':'warn')+'">Argentina: '+html(statusLabel(j.geography_status))+'</span><span class="tag '+(j.language_status==='excluded'?'bad':j.language_status==='confirmed'?'ok':'warn')+'">Idioma: '+html(statusLabel(j.language_status))+'</span>'+(incompatible?'<span class="tag bad">No cumple un requisito</span>':'')+'</div><p class="small">Fuente: '+html(j.source)+' · Última comprobación: '+html(fmt(j.checked_at))+' · Afinidad orientativa: '+(j.suitability_score||0)+'/100'+(j.salary_text?' · Salario publicado: '+html(j.salary_text):' · Salario no informado')+'</p><p class="small">'+html(j.eligibility_reason||'Revisá las condiciones originales')+'</p><p><a class="original" target="_blank" rel="noopener noreferrer" href="'+html(j.url)+'">Abrir oferta original ↗</a></p></article>'
  }).join('')||'<p class="helper">No hay ofertas con estos filtros. Si elegiste «24 horas», puede que ninguna haya sido publicada hoy. Probá «Todas» y «Sin incompatibilidades detectadas». No inventamos publicaciones para completar la lista.</p>';
  $('evidenceList').innerHTML=evidence.map(e=>'<div class="row between" style="border-bottom:1px solid #dae5ec;padding:9px 0"><span><strong>'+html(e.skill)+'</strong><br>'+html(e.evidence)+'<br><span class="tag ok">Declarada por vos</span></span><button class="secondary" type="button" data-evidence-remove="'+html(e.id)+'">Quitar</button></div>').join('')||'<p>No hay habilidades con evidencia confirmada. Las coincidencias ATS quedan por revisar.</p>';
- $('cvList').innerHTML=cvs.map(c=>'<div class="row between" style="margin:8px 0"><span class="small">📄 '+html(c.file_name)+'</span><button type="button" data-cv="'+html(c.id)+'" class="secondary">Ver mi CV</button></div>').join('')||'<p class="small">No cargaste un CV todavía.</p>';
+ $('cvCount').textContent=cvs.length+' currículum'+(cvs.length===1?'':'s')+' guardado'+(cvs.length===1?'':'s')+'. Podés agregar tantos perfiles y versiones como necesites, dentro del espacio disponible.';
+$('cvList').innerHTML=cvs.map(c=>{
+ const protectedCV=approvals.some(a=>a.cv_id===c.id);
+ return '<article class="job" style="margin:8px 0"><strong>📄 '+html(cvTitle(c))+'</strong><p class="small"><span class="tag">'+html(cvLabel(c))+'</span> '+html(c.file_name)+' · Guardado: '+html(fmt(c.uploaded_at))+'</p><div class="row"><button type="button" class="secondary" data-cv="'+html(c.id)+'">Ver CV</button><button type="button" class="secondary" data-cv-edit="'+html(c.id)+'">Cambiar nombre o perfil</button><button type="button" class="secondary" data-cv-delete="'+html(c.id)+'" '+(protectedCV?'disabled title="Este CV está asociado con una aprobación de postulación"':'')+'>Eliminar</button></div>'+(protectedCV?'<p class="small">Este CV está asociado a una postulación aprobada y no puede eliminarse para conservar la trazabilidad.</p>':'')+'</article>';
+}).join('')||'<p class="small">Todavía no cargaste ningún CV. Comenzá por uno para Administración, otro para Procesos y otro para Customer Success o Soporte funcional.</p>';
  $('sources').innerHTML=sources.map(s=>'<div class="row between"><span class="small">'+html(s.provider)+' / '+html(s.slug)+'</span><button class="secondary" type="button" data-source-remove="'+html(s.id)+'">Quitar</button></div>').join('')||'<p class="small">Todavía no agregaste empresas. La búsqueda general igual puede ejecutarse.</p>';
  $('searchHistory').innerHTML=runs.slice(0,8).map(x=>'<p>🕒 '+html(fmt(x.started_at))+' · '+(x.finished_at?html(String(x.found_count))+' registros nuevos o actualizados':'En progreso o sin finalizar')+(x.source_summary?.errors?.length?' · '+x.source_summary.errors.length+' fuentes con errores':'')+'</p>').join('')||'<p>No hay búsquedas registradas.</p>';
  $('history').innerHTML=approvals.map(a=>{let j=jobs.find(j=>j.id===a.job_id);return '<p class="small">'+html(j?.company||'Oferta archivada')+' · '+html(j?.title||'')+' · Aprobada '+fmt(a.approved_at)+' · <strong>'+(a.user_reported_sent_at?'Envío declarado por vos, sin verificar':'CV no enviado automáticamente')+'</strong></p>'}).join('')||'<p class="small">No hay aprobaciones.</p>';
  document.querySelectorAll('[data-job]').forEach(b=>b.addEventListener('click',()=>openJob(b.dataset.job)));
- document.querySelectorAll('[data-cv]').forEach(b=>b.addEventListener('click',()=>viewCV(b.dataset.cv)));document.querySelectorAll('[data-evidence-remove]').forEach(b=>b.addEventListener('click',()=>removeEvidence(b.dataset.evidenceRemove)));
+ document.querySelectorAll('[data-cv]').forEach(b=>b.addEventListener('click',()=>viewCV(b.dataset.cv)));
+ document.querySelectorAll('[data-cv-edit]').forEach(b=>b.addEventListener('click',()=>editCV(b.dataset.cvEdit)));
+ document.querySelectorAll('[data-cv-delete]').forEach(b=>b.addEventListener('click',()=>deleteCV(b.dataset.cvDelete)));document.querySelectorAll('[data-evidence-remove]').forEach(b=>b.addEventListener('click',()=>removeEvidence(b.dataset.evidenceRemove)));
  document.querySelectorAll('[data-source-remove]').forEach(b=>b.addEventListener('click',()=>removeSource(b.dataset.sourceRemove)));
 }
 async function removeEvidence(id){if(!confirm('¿Quitar esta habilidad confirmada? Dejará de contar en próximas búsquedas.'))return;const {error}=await sb.from('experience_evidence').delete().eq('user_id',user.id).eq('id',id);if(error)return fail(error);await refresh();note('Evidencia quitada. Ejecutá una nueva búsqueda para recalcular ATS.')}
+async function editCV(id){
+ const c=cvs.find(x=>x.id===id);if(!c)return;
+ const name=prompt('Nombre para identificar este CV:',cvTitle(c));
+ if(name===null)return;
+ if(!name.trim()||name.trim().length>100)return note('El nombre debe tener entre 1 y 100 caracteres.',true);
+ const choices=Object.entries(CV_PROFILES).map(([key,value])=>key+' = '+value).join('\n');
+ const type=prompt('Elegí el perfil escribiendo su código:\n'+choices,c.profile_type||'general');
+ if(type===null)return;
+ if(!Object.hasOwn(CV_PROFILES,type.trim()))return note('Perfil no reconocido. Usá uno de los códigos mostrados.',true);
+ try{const {error}=await sb.from('cv_files').update({display_name:name.trim(),profile_type:type.trim()}).eq('id',id).eq('user_id',user.id);
+ if(error)throw error;await refresh();note('Nombre y perfil del CV actualizados. El archivo original no cambió.');
+ }catch(e){fail(e)}
+}
+async function deleteCV(id){
+ const c=cvs.find(x=>x.id===id);if(!c)return;
+ if(approvals.some(a=>a.cv_id===id))return note('No se puede eliminar un CV que ya está vinculado a una aprobación de postulación.',true);
+ if(!confirm('¿Eliminar definitivamente el CV «'+cvTitle(c)+'» y su archivo privado? Esta acción no se puede deshacer.'))return;
+ try{
+ const {error:dbError}=await sb.from('cv_files').delete().eq('id',id).eq('user_id',user.id);
+ if(dbError)throw dbError;
+ const {error:storageError}=await sb.storage.from('private-resumes').remove([c.storage_path]);
+ await refresh();
+ if(storageError)note('Se quitó el CV de la lista, pero no se pudo borrar el archivo privado. Requiere revisión del almacenamiento.',true);
+ else note('CV eliminado de tu biblioteca privada.');
+ }catch(e){fail(e)}
+}
 async function viewCV(id){
  const c=cvs.find(x=>x.id===id);if(!c)return;
  try{const {data,error}=await sb.storage.from('private-resumes').createSignedUrl(c.storage_path,90);if(error)throw error;
@@ -104,20 +172,40 @@ async function removeSource(id){
  if(error)return fail(error);await refresh();note('Fuente quitada de futuras búsquedas.')
 }
 async function openJob(id){const j=jobs.find(j=>j.id===id);if(!j)return;$('detailTitle').textContent=j.title;const approval=approvals.find(a=>a.job_id===id);
-$('detailBody').innerHTML='<p><b>'+html(j.company)+'</b> · '+html(j.location_text)+'</p><h3>Enlace original obligatorio</h3><p class="original"><a target="_blank" rel="noopener noreferrer" href="'+html(j.url)+'">'+html(j.url)+'</a></p><p class="small">Fecha de publicación: '+fmt(j.published_at)+' · Comprobada: '+fmt(j.checked_at)+'</p><p class="small">Geografía: '+html(j.geography_status)+' · Idioma: '+html(j.language_status)+'. Si están pendientes, se requiere corroboración en la fuente.</p><p class="helper">'+html(j.eligibility_reason||'La elegibilidad requiere revisión')+'</p><p>Salario: '+html(j.salary_text||'No informado')+'</p><h3>ATS: habilidades con experiencia confirmada por vos</h3><div>'+((j.ats_matched||[]).map(x=>'<span class="tag ok">'+html(x)+'</span>').join('')||'<p class="small">Ninguna respaldada por evidencia declarada. Podés agregarla desde Mi perfil.</p>')+'</div><h3>Palabras por confirmar (no agregar sin evidencia)</h3><div>'+((j.ats_pending||[]).map(x=>'<span class="tag warn">'+html(x)+'</span>').join('')||'<p class="small">Sin datos.</p>')+'</div><h3>Descripción original</h3><div class="description">'+html((j.description_text||'No informada').slice(0,10000))+'</div>'+(approval?'<p class="notice">Preparación autorizada. '+(approval.user_reported_sent_at?'Registraste manualmente un envío el '+html(fmt(approval.user_reported_sent_at))+'. Sin confirmación automática del portal.':'Aún no consta que hayas enviado la postulación. El CV NO se envió automáticamente.')+'</p><p><a target="_blank" rel="noopener noreferrer" class="button" href="'+html(j.apply_url||j.url)+'">Abrir postulación externa</a></p>'+(!approval.user_reported_sent_at?'<label>Referencia de confirmación (opcional)<input id="receiptNotes" maxlength="300" placeholder="Ej.: mensaje de confirmación"></label><button type="button" id="markApplied">Registrar envío realizado por mí</button>':''):'<h3>Revisión y aprobación</h3><label>Elegí el CV<select id="chooseCV"><option value="">Seleccionar archivo</option>'+cvs.map(c=>'<option value="'+html(c.id)+'">'+html(c.file_name)+'</option>').join('')+'</select></label><label><input id="confirmJob" style="width:auto;margin-right:6px" type="checkbox">Revisé la oferta original, sus requisitos y el CV seleccionado.</label><button id="approve">Verificar y aprobar (NO enviar CV)</button>');
+$('detailBody').innerHTML='<p><b>'+html(j.company)+'</b> · '+html(j.location_text)+'</p><h3>Enlace original obligatorio</h3><p class="original"><a target="_blank" rel="noopener noreferrer" href="'+html(j.url)+'">'+html(j.url)+'</a></p><p class="small">Fecha de publicación: '+fmt(j.published_at)+' · Comprobada: '+fmt(j.checked_at)+'</p><p class="small">Geografía: '+html(j.geography_status)+' · Idioma: '+html(j.language_status)+'. Si están pendientes, se requiere corroboración en la fuente.</p><p class="helper">'+html(j.eligibility_reason||'La elegibilidad requiere revisión')+'</p><p>Salario: '+html(j.salary_text||'No informado')+'</p><h3>ATS: habilidades con experiencia confirmada por vos</h3><div>'+((j.ats_matched||[]).map(x=>'<span class="tag ok">'+html(x)+'</span>').join('')||'<p class="small">Ninguna respaldada por evidencia declarada. Podés agregarla desde Mi perfil.</p>')+'</div><h3>Palabras por confirmar (no agregar sin evidencia)</h3><div>'+((j.ats_pending||[]).map(x=>'<span class="tag warn">'+html(x)+'</span>').join('')||'<p class="small">Sin datos.</p>')+'</div><h3>Descripción original</h3><div class="description">'+html((j.description_text||'No informada').slice(0,10000))+'</div>'+(approval?'<p class="small">CV elegido: '+html(cvTitle(cvs.find(c=>c.id===approval.cv_id)))+' ('+html(cvLabel(cvs.find(c=>c.id===approval.cv_id)))+')</p><p class="notice">Preparación autorizada. '+(approval.user_reported_sent_at?'Registraste manualmente un envío el '+html(fmt(approval.user_reported_sent_at))+'. Sin confirmación automática del portal.':'Aún no consta que hayas enviado la postulación. El CV NO se envió automáticamente.')+'</p><p><a target="_blank" rel="noopener noreferrer" class="button" href="'+html(j.apply_url||j.url)+'">Abrir postulación externa</a></p>'+(!approval.user_reported_sent_at?'<label>Referencia de confirmación (opcional)<input id="receiptNotes" maxlength="300" placeholder="Ej.: mensaje de confirmación"></label><button type="button" id="markApplied">Registrar envío realizado por mí</button>':''):'<h3>Revisión y aprobación</h3><p class="small">Recomendación orientativa: '+html((suggestedCVProfile(j)&&CV_PROFILES[suggestedCVProfile(j)])||'Elegí el perfil según los requisitos de la oferta')+'. El CV se selecciona manualmente y no se envía sin tu permiso.</p><label>¿Cuál de tus CV querés usar?<select id="chooseCV"><option value="">Elegí una versión antes de aprobar</option>'+[...cvs].sort((a,b)=>Number(b.profile_type===suggestedCVProfile(j))-Number(a.profile_type===suggestedCVProfile(j))).map(c=>'<option value="'+html(c.id)+'">'+html(cvLabel(c)+' · '+cvTitle(c))+'</option>').join('')+'</select></label><button type="button" class="secondary" id="previewSelectedCV">Ver CV seleccionado</button><label><input id="confirmJob" style="width:auto;margin-right:6px" type="checkbox">Revisé la oferta original, sus requisitos y el CV seleccionado.</label><button id="approve">Verificar y aprobar (NO enviar CV)</button>');
 $('detail').showModal();
+if(!approval)$('previewSelectedCV').onclick=()=>{const id=$('chooseCV').value;if(!id)return note('Primero seleccioná cuál de tus CV querés revisar.',true);viewCV(id)};
 if(approval&&!approval.user_reported_sent_at)$('markApplied').onclick=async()=>{
  if(!confirm('¿Completaste efectivamente el envío en el portal original? Esta acción solo registra tu declaración; no envía ningún CV.'))return;
  try{const {error}=await sb.from('application_approvals').update({user_reported_sent_at:new Date().toISOString(),user_notes:$('receiptNotes').value.trim()}).eq('id',approval.id).eq('user_id',user.id);
  if(error)throw error;await refresh();$('detail').close();note('Registrado como enviado por vos. Este dato no constituye una confirmación independiente del portal.')}catch(e){fail(e)}
 };
-if(!approval)$('approve').onclick=async()=>{const cv=$('chooseCV').value;if(!cv||!$('confirmJob').checked)return note('Seleccioná un CV y confirmá que revisaste el enlace.',true);if(j.geography_status==='excluded'||j.language_status==='excluded')return note('Requisitos incompatibles. No se habilita aprobación.',true);try{const {data,error}=await sb.functions.invoke('buscar-ofertas',{body:{action:'verify',job_id:id}});if(error)throw error;if(!data?.active)throw Error('No pudo comprobarse que siga vigente. No se autorizó.');if(!confirm('Oferta: '+j.title+'\nEmpresa: '+j.company+'\nURL: '+j.url+'\nCV: '+cvs.find(c=>c.id===cv)?.file_name+'\n\n¿Aprobar la preparación? NO se enviará tu CV.'))return;const res=await sb.from('application_approvals').insert({user_id:user.id,job_id:id,cv_id:cv,original_url:j.url});if(res.error)throw res.error;await refresh();$('detail').close();note('Aprobación registrada. No se envió ningún CV.')}catch(e){fail(e)}}}
+if(!approval)$('approve').onclick=async()=>{const cv=$('chooseCV').value;if(!cv||!$('confirmJob').checked)return note('Seleccioná un CV y confirmá que revisaste el enlace.',true);if(j.geography_status==='excluded'||j.language_status==='excluded')return note('Requisitos incompatibles. No se habilita aprobación.',true);try{const {data,error}=await sb.functions.invoke('buscar-ofertas',{body:{action:'verify',job_id:id}});if(error)throw error;if(!data?.active)throw Error('No pudo comprobarse que siga vigente. No se autorizó.');if(!confirm('Oferta: '+j.title+'\nEmpresa: '+j.company+'\nURL: '+j.url+'\nCV: '+cvTitle(cvs.find(c=>c.id===cv))+' ('+cvLabel(cvs.find(c=>c.id===cv))+')'+'\nArchivo: '+cvs.find(c=>c.id===cv)?.file_name+'\n\n¿Aprobar la preparación? NO se enviará tu CV.'))return;const res=await sb.from('application_approvals').insert({user_id:user.id,job_id:id,cv_id:cv,original_url:j.url});if(res.error)throw res.error;await refresh();$('detail').close();note('Aprobación registrada. No se envió ningún CV.')}catch(e){fail(e)}}}
 $('showPassword').onchange=()=>{$('password').type=$('showPassword').checked?'text':'password'};$('close').onclick=()=>$('detail').close();$('logout').onclick=async()=>{await sb.auth.signOut();user=null;setAuth(false)};$('loginForm').onsubmit=async e=>{e.preventDefault();try{$('message').classList.add('hide');const {error}=await sb.auth.signInWithPassword({email:$('email').value,password:$('password').value});if(error)throw error;await signIn()}catch(e){fail(e)}};$('signup').onclick=async()=>{try{$('message').classList.add('hide');if(!$('email').checkValidity()){ $('email').reportValidity();return;}if(!$('password').checkValidity()){ $('password').reportValidity();note('Ingresá una contraseña de al menos 8 caracteres para crear la cuenta.',true);return;}const {data,error}=await sb.auth.signUp({email:$('email').value.trim(),password:$('password').value});if(error)throw error;note(data.session?'Cuenta creada':'Cuenta creada: revisá tu correo para confirmar el acceso.');await signIn()}catch(e){fail(e)}};
 $('scan').onclick=async()=>{let b=$('scan');b.disabled=true;b.textContent='Buscando fuentes…';$('scanStatus').textContent='Consultando las bolsas laborales. Puede tardar algunos segundos. No se enviará tu CV.';try{const {data,error}=await sb.functions.invoke('buscar-ofertas',{body:{action:'scan'}});if(error)throw error;if(data?.error)throw Error(data.error);await refresh();const msg='Búsqueda finalizada: '+data.imported+' ofertas nuevas y '+data.updated+' actualizadas. '+(data.errors?.length?'Fuentes con fallas: '+data.errors.join(' | '):'');$('scanStatus').textContent=msg;note(msg);document.getElementById('ofertas').scrollIntoView({behavior:'smooth',block:'start'});}catch(e){$('scanStatus').textContent='La búsqueda no pudo completarse. Consultá el mensaje de error.';fail(e)}finally{b.disabled=false;b.textContent='↻ Iniciar búsqueda de hoy'}};
 ['dateFilter','eligibility','salaryFilter','searchText'].forEach(id=>$(id).addEventListener('input',render));$('resetFilters').onclick=()=>{$('dateFilter').value='all';$('eligibility').value='viable';$('searchText').value='';$('salaryFilter').value='all';render();note('Filtros restablecidos. Se muestran las ofertas sin incompatibilidades conocidas.')};
 $('profileForm').onsubmit=async e=>{e.preventDefault();try{const {error}=await sb.from('profiles').upsert({user_id:user.id,roles:$('roles').value,skills:$('skills').value,preferences:$('preferences').value,desired_salary_ars:$('salary').value?Number($('salary').value):null,remote_argentina:$('allowRemote').checked,hybrid_mar_del_plata:$('allowHybrid').checked,updated_at:new Date().toISOString()});if(error)throw error;note('Perfil actualizado correctamente. Las palabras clave se recalculan al ejecutar una nueva búsqueda.')}catch(e){fail(e)}};
 $('evidenceForm').onsubmit=async e=>{e.preventDefault();if(!$('evidenceConfirm').checked)return note('Confirmá que la experiencia sea real.',true);const skill=$('evidenceSkill').value.trim(),description=$('evidenceText').value.trim();if(skill.length<2||description.length<15)return note('Completá la habilidad y una experiencia real de al menos 15 caracteres.',true);try{const {error}=await sb.from('experience_evidence').insert({user_id:user.id,skill,evidence:description,confirmed:true});if(error)throw error;$('evidenceForm').reset();await refresh();note('Experiencia declarada por vos y guardada. Actualizá la búsqueda para recalcular ATS.')}catch(e){fail(e)}};
 $('sourceForm').onsubmit=async e=>{e.preventDefault();try{const {error}=await sb.from('job_sources').insert({user_id:user.id,provider:$('provider').value,slug:$('slug').value.trim().toLowerCase()});if(error)throw error;$('slug').value='';await refresh();note('Fuente guardada. Se consultará en la próxima búsqueda; no significa que sus ofertas estén verificadas.')}catch(e){fail(e)}};
-$('uploadForm').onsubmit=async e=>{e.preventDefault();const f=$('cvFile').files[0];if(!f||f.size>8388608||!/\.(pdf|doc|docx)$/i.test(f.name))return note('Admitidos PDF/DOC/DOCX hasta 8 MB.',true);const ext=f.name.split('.').pop().toLowerCase(),mime={pdf:'application/pdf',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}[ext],path=user.id+'/'+crypto.randomUUID()+'.'+ext;try{const {error:e1}=await sb.storage.from('private-resumes').upload(path,f,{contentType:mime});if(e1)throw e1;const {error:e2}=await sb.from('cv_files').insert({user_id:user.id,file_name:f.name,storage_path:path});if(e2){await sb.storage.from('private-resumes').remove([path]);throw e2}await refresh();$('cvFile').value='';note('CV guardado en privado. Podés revisarlo con «Ver mi CV». No se envió a ninguna empresa.')}catch(e){fail(e)}};
+$('uploadForm').onsubmit=async e=>{
+ e.preventDefault();
+ const file=$('cvFile').files[0];
+ const name=$('cvDisplayName').value.trim();
+ const profile=$('cvProfile').value;
+ if(!name||name.length>100)return note('Elegí un nombre de hasta 100 caracteres para identificar el CV.',true);
+ if(!Object.hasOwn(CV_PROFILES,profile))return note('Seleccioná uno de los perfiles disponibles.',true);
+ if(!file||file.size===0||file.size>8388608||!/\.(pdf|doc|docx)$/i.test(file.name))return note('Subí un PDF o Word válido, de hasta 8 MB.',true);
+ const ext=file.name.split('.').pop().toLowerCase(),mime={pdf:'application/pdf',doc:'application/msword',docx:'application/vnd.openxmlformats-officedocument.wordprocessingml.document'}[ext],path=user.id+'/'+crypto.randomUUID()+'.'+ext;
+ const button=$('uploadButton');button.disabled=true;button.textContent='Guardando CV…';
+ try{
+  const {error:uploadError}=await sb.storage.from('private-resumes').upload(path,file,{contentType:mime});
+  if(uploadError)throw uploadError;
+  const {error:dbError}=await sb.from('cv_files').insert({user_id:user.id,file_name:file.name,storage_path:path,display_name:name,profile_type:profile});
+  if(dbError){await sb.storage.from('private-resumes').remove([path]);throw dbError}
+  await refresh();$('uploadForm').reset();
+  note('CV «'+name+'» guardado en el perfil '+CV_PROFILES[profile]+'. Podés agregar más versiones cuando quieras. No se envió a ninguna empresa.');
+ }catch(err){fail(err)}
+ finally{button.disabled=false;button.textContent='Agregar currículum'}
+};
 signIn().catch(fail);
 </script></body></html>
