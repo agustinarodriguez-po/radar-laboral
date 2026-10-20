@@ -1,32 +1,57 @@
-# Radar Laboral · MVP
+# Radar Laboral — asistente personal de búsqueda de empleo
 
-Buscador personal de ofertas laborales verificables, con filtros para trabajo remoto desde Argentina, análisis orientativo de términos ATS, CV privado y aprobación individual antes de cada postulación.
+**Aplicación:** https://agustinarodriguez-po.github.io/radar-laboral/  
+**Backend:** Supabase, Edge Function `buscar-ofertas`.
 
-## Estado
-- Frontend: aplicación estática, prevista para GitHub Pages.
-- Supabase: proyecto independiente `gmzdhonubpbywlwaplok`.
-- Base de datos: esquema con RLS y almacenamiento privado ya implementado en Supabase.
-- Backend: Edge Function `buscar-ofertas` desplegada; consulta Arbeitnow, Get on Board y bolsas de empresas añadidas de Greenhouse/Lever. La disponibilidad de cada fuente depende de sus APIs.
-- **No envía postulaciones de manera automática.** La aprobación habilita la preparación y apertura de la oferta, nunca un envío sin permiso.
-- El análisis ATS compara el texto de las ofertas con habilidades declaradas; aún no modifica archivos de CV.
-- La compatibilidad geográfica o el idioma se consideran pendientes cuando las publicaciones no son explícitas.
-- No contiene empleos ficticios. Una API fallida presenta errores y no se reemplaza por datos inventados.
+Herramienta privada para revisar vacantes reales, analizar términos ATS sin inventar experiencia, preparar postulaciones y registrar manualmente las enviadas.
 
-## Publicación
-1. GitHub > Settings > Pages > Build and deployment > Deploy from a branch > main > /(root).
-2. En Supabase > Authentication > URL Configuration, añadir la URL real de GitHub Pages en Site URL y Redirect URLs. **No asumir que GitHub Pages ya está publicado** hasta ver el enlace de confirmación de GitHub.
-3. En la web, registrarse con correo propio; completar el perfil con habilidades acreditadas y subir un CV PDF o Word (máximo 8 MB).
-4. Pulsar **Iniciar búsqueda de hoy**. Inspeccionar los resultados: fuente, URL, fechas y elegibilidad.
-5. Para preparar una postulación, seleccionar el CV, abrir y revisar la publicación original y confirmar expresamente. El envío al portal es manual.
+## Estado real del MVP
 
-## Seguridad
-No subir CV ni credenciales a GitHub. `config.js` solo tiene una clave **publicable** de Supabase. Los datos personales se aíslan mediante RLS y los CV se almacenan en bucket privado. Jamás colocar `service_role`, `sb_secret` o passwords en archivos públicos.
+| Función | Estado |
+|---|---|
+| Inicio de sesión con Supabase Auth | Implementado |
+| Consulta bajo demanda a APIs | Implementada (Jobicy, Arbeitnow, Get on Board, fuentes configuradas de Greenhouse y Lever) |
+| Resultados con URL original y fecha publicada | Implementado cuando la fuente aporta los datos |
+| Filtros de antigüedad y elegibilidad | Implementación básica |
+| Distinción entre remoto desde Argentina confirmado y pendiente | Implementado con heurísticas conservadoras; revisar siempre el anuncio |
+| Habilidades ATS con evidencia confirmada por la persona | Implementado a nivel de términos; no verifica experiencia con terceros |
+| Personalización automática del archivo CV | **Pendiente** |
+| CV en almacenamiento privado | Implementado; requiere prueba integral |
+| Aprobación individual antes de preparar la postulación | Implementado |
+| Envío automático de CV en portales externos | **NO implementado ni activado** |
+| Registro manual de envío declarado por usuario | Implementado, no constituye comprobante externo |
+| Pruebas automáticas | Sintaxis y presencia de funciones/controles; no equivale a E2E |
 
-## Archivos
-- `index.html`: estructura visual
-- `styles.css`: estilos adaptables
-- `app.js`: login, consulta, filtros, CV, revisión y registro de autorizaciones
-- `config.js`: identificación pública del proyecto Supabase
+## Cómo usar
 
-## Pendiente para producción
-Prueba integral con cuenta autenticada y APIs activas; verificar las redirecciones de login de Supabase; validar la cobertura regional real de las fuentes; mejorar la extracción de requisitos y la generación de versiones ATS; añadir integraciones de postulación solamente donde estén autorizadas.
+1. Ingresar con cuenta propia y revisar los datos del perfil.
+2. En **Mi perfil > Evidencia de mis habilidades**, agregar una descripción real para cada conocimiento que quieras considerar respaldado. Sin evidencia las coincidencias siguen pendientes.
+3. Subir el CV en **Mis currículums** (PDF/DOC/DOCX, máximo 8 MB).
+4. Pulsar **Iniciar búsqueda de hoy**. Se distinguirán fecha de publicación, fecha de consulta y ubicación no confirmada. Las fuentes pueden fallar; no se inventarán resultados.
+5. Abrir el enlace de cada oferta y corroborar modalidad, país de contratación, idioma y requisitos.
+6. Elegir versión del CV y **autorizar exclusivamente la preparación**. La aprobación no envía datos externos.
+7. Abrir el formulario real de la oferta, postular manualmente y, solo después, usar «Registrar envío realizado por mí».
+
+## Arquitectura y seguridad
+
+- Frontend estático en `index.html`, publicado con GitHub Pages.
+- Configuración pública de conexión a Supabase en `config.js`; **nunca** incluir secretos privados.
+- Motor de búsqueda versionado en `supabase/functions/buscar-ofertas/index.ts`; la función desplegada debe sincronizarse expresamente al modificar el código.
+- Tablas PostgreSQL protegidas por Row-Level Security (RLS).
+- CV almacenados en un bucket privado.
+- La elegibilidad geográfica se confirma solo ante señales explícitas sobre Argentina. La falta de un requisito no se trata como cumplimiento confirmado.
+- El puntaje de afinidad es orientativo, **no predice si un ATS aceptará el CV**.
+- La confirmación de envío exige recibo o comprobación de la plataforma externa; la opción actual es solo declaración manual.
+
+## Por terminar (P0)
+
+- Pruebas funcionales con sesión real y las tres APIs.
+- Distinguir requisitos excluyentes de deseables con mayor precisión.
+- Analizar contenido del CV autorizado para generar versiones ATS editables, sin inventar experiencia.
+- Guardar un comprobante real del envío si se habilitan integraciones autorizadas.
+- Manejar mejor tiempos de espera, rate limiting y consultas parciales.
+
+## Qué no hace
+
+No publica vacantes propias ni usa `JobPosting` para indexar anuncios ajenos; es un panel personal.
+No navega cuentas externas automáticamente, no evita restricciones de portales y no envía postulaciones masivamente.
