@@ -98,7 +98,8 @@ async function arbeitnow():Promise<Offer[]>{
 // Himalayas: API pública, sin clave, requiere atribución y applicationLink para aplicar.
 // Ref: https://himalayas.app/docs/remote-jobs-api
 async function himalayas():Promise<Offer[]>{
- const keywords=['administrativo','operations','customer success','soporte'];
+ // Ampliar términos sin abandonar el idioma exigido: el filtro final sigue siendo estricto.
+ const keywords=['administrativo','back office','operaciones','analista de procesos','customer success','soporte','operations'];
  const responses=await Promise.allSettled(keywords.map(async q=>{
   const api='https://himalayas.app/jobs/api/search?q='+encodeURIComponent(q)+'&country=AR&sort=recent&page=1';
   const data=await get(api);
@@ -153,20 +154,22 @@ async function getonbrd():Promise<Offer[]>{
  const v=await get('https://www.getonbrd.com/api/v0/categories');
  if(!Array.isArray(v.data))throw Error('Categorías no disponibles');
  // No depender del orden de la API: consultar las categorías que mejor se ajustan al perfil.
- const priority=['operations-management','customer-support','technical-support','innovation-agile','sales'];
- const candidates=v.data.map((x:any)=>String(x.id||'')).filter(slugOK);
- const ids=priority.filter(id=>candidates.includes(id));
- if(!ids.length)throw Error('Get on Board no ofrece las categorías esperadas');
- const batches=await Promise.allSettled(ids.flatMap(id=>[1,2].map(async page=>{
-  const b=await get('https://www.getonbrd.com/api/v0/categories/'+id+'/jobs?per_page=120&page='+page+'&expand[]=company');
-  if(!Array.isArray(b.data))throw Error('Vacantes no disponibles: '+id+', página '+page);
+ const priority=['operations-management','customer-support','finance','accounting','technical-support','innovation-agile','other'];
+ const candidates=v.data.map((x:any)=>({id:String(x.id||''),name:String(x.attributes?.name||'')})).filter(x=>slugOK(x.id));
+ const core=priority.filter(id=>candidates.some(x=>x.id===id));
+ const related=candidates.filter(x=>/(operat|administr|financ|account|business|soporte|support|customer|gesti[oó]n|management|other)/i.test(x.id+' '+x.name)).map(x=>x.id);
+ const ids=[...new Set([...core,...related])].slice(0,8);
+ if(!ids.length)throw Error('Get on Board no ofrece categorías compatibles');
+ const batches=await Promise.allSettled(ids.map(async id=>{
+  const b=await get('https://www.getonbrd.com/api/v0/categories/'+id+'/jobs?per_page=120&page=1&expand[]=company');
+  if(!Array.isArray(b.data))throw Error('Vacantes no disponibles: '+id);
   return b.data.filter((x:any)=>x.attributes?.remote===true && isRelevant(String(x.attributes.title||''))).flatMap((x:any)=>{
    const a=x.attributes||{},url=String(x.links?.public_url||'');
    if(!validURL(url)||!/^(?:[\w-]+\.)?getonbrd\.(?:com|cl|com\.ar)$/.test(new URL(url).hostname))return [];
    const company=a.company?.data?.attributes?.name||a.company?.data?.id||'Empresa en Get on Board';
    return [{source:'getonbrd',source_slug:id,external_id:String(x.id),company:String(company),title:String(a.title),location_text:String(a.remote_zone||'')+' '+(Array.isArray(a.countries)?a.countries.join(', '):''),workplace:'remote',url,apply_url:url,description_text:strip(String(a.description||'')+' '+String(a.functions||'')+' '+String(a.desirable||'')),published_at:iso(a.published_at),updated_at_source:null}];
   });
- })));
+ }));
  const successful=batches.filter((x):x is PromiseFulfilledResult<Offer[]>=>x.status==='fulfilled');
  if(!successful.length)throw Error('Fallaron las consultas a categorías de Get on Board');
  const unique=new Map<string,Offer>();
@@ -233,23 +236,37 @@ Deno.serve(async request=>{
  const {data:runRecord}=await sb.from('search_runs').insert({user_id:user.id,source_summary:{status:'started'}}).select('id').single();
  const res=await Promise.allSettled(tasks.map(t=>t.fetch()));
  let imported=0,updated=0,matched=0,discardedLanguage=0;const errors:string[]=[];
+ const sourceReport=tasks.map(t=>({name:t.name,status:'pending',consulted:0,spanish:0,englishOrRequired:0,languageUnconfirmed:0,geographyExcluded:0,new:0,updated:0,errors:0}));
  for(let i=0;i<res.length;i++){
-  if(res[i].status==='rejected'){errors.push(tasks[i].name+': '+String((res[i] as PromiseRejectedResult).reason).slice(0,110));continue}
+  const report=sourceReport[i];
+  if(res[i].status==='rejected'){
+   report.status='error';report.errors++;
+   errors.push(tasks[i].name+': '+String((res[i] as PromiseRejectedResult).reason).slice(0,110));
+   continue
+  }
   const arr=(res[i] as PromiseFulfilledResult<Offer[]>).value;
+  report.status='ok';report.consulted=arr.length;
   matched+=arr.length;
   for(const j of arr){
    if(!validURL(j.url)||!validURL(j.apply_url))continue;
    const assessment=classify(j,evidences,roles);
-   if(assessment.language_status!=='confirmed'){discardedLanguage++;continue;}
+   if(assessment.language_status!=='confirmed'){
+    discardedLanguage++;
+    if(assessment.language_status==='pending')report.languageUnconfirmed++;
+    else report.englishOrRequired++;
+    continue;
+   }
+   report.spanish++;
+   if(assessment.geography_status==='excluded')report.geographyExcluded++;
    const keys={user_id:user.id,source:j.source,source_slug:j.source_slug,external_id:j.external_id};
    const {data:old,error:lookupErr}=await sb.from('jobs').select('id').match(keys).maybeSingle();
-   if(lookupErr){errors.push(tasks[i].name+': consulta fallida');break}
+   if(lookupErr){report.errors++;errors.push(tasks[i].name+': consulta fallida');break}
    const data={...j,...assessment,original_url:j.url,source_job_id:j.external_id,description:j.description_text,employment_location:j.location_text,verified_at:new Date().toISOString(),verification_status:'verified',source_checked_at:new Date().toISOString(),checked_at:new Date().toISOString()};
    const result=old?await sb.from('jobs').update(data).eq('user_id',user.id).eq('id',old.id):await sb.from('jobs').insert({...keys,...data});
-   if(result.error){errors.push(tasks[i].name+': '+result.error.message.slice(0,115));break}
-   if(old)updated++;else imported++;
+   if(result.error){report.errors++;errors.push(tasks[i].name+': '+result.error.message.slice(0,115));break}
+   if(old){updated++;report.updated++}else{imported++;report.new++}
   }
  }
- if(runRecord?.id){await sb.from('search_runs').update({finished_at:new Date().toISOString(),found_count:imported+updated,source_summary:{status:'completed',sources:tasks.map((task,i)=>({name:task.name,status:res[i].status,count:res[i].status==='fulfilled'?(res[i] as PromiseFulfilledResult<Offer[]>).value.length:0})),errors}}).eq('id',runRecord.id).eq('user_id',user.id)}
- return respond({imported,updated,matched,discardedLanguage,sources:tasks.length,errors,at:new Date().toISOString(),notice:'Solo se guardan avisos redactados principalmente en español y sin inglés obligatorio. Nunca se envía un CV sin autorización.'});
+ if(runRecord?.id){await sb.from('search_runs').update({finished_at:new Date().toISOString(),found_count:imported+updated,source_summary:{status:errors.length?'partial':'completed',sources:sourceReport,errors,matched,discardedLanguage}}).eq('id',runRecord.id).eq('user_id',user.id)}
+ return respond({imported,updated,matched,discardedLanguage,sourceReport,sources:tasks.length,errors,at:new Date().toISOString(),notice:'Solo se guardan avisos redactados principalmente en español y sin inglés obligatorio. Nunca se envía un CV sin autorización.'});
 });
