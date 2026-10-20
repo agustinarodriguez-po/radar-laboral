@@ -16,5 +16,7 @@ jobs:
 
       - name: Validar publicaciones en español
         run: node scripts/test-language.mjs
+      - name: Validar interfaz Radar 2.0 y seguridad Auto Apply
+        run: node scripts/test-workspace.mjs
       - name: Comprobar API Himalayas en vivo
         run: node scripts/smoke-himalayas.mjs
