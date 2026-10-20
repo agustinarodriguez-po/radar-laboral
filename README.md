@@ -10,7 +10,8 @@ Herramienta privada para revisar vacantes reales **redactadas principalmente en 
 | Función | Estado |
 |---|---|
 | Inicio de sesión con Supabase Auth | Implementado |
-| Consulta bajo demanda a APIs | Implementada (Jobicy, Arbeitnow, Get on Board, fuentes configuradas de Greenhouse y Lever) |
+| Consulta bajo demanda a APIs | Implementada (Jobicy, Arbeitnow, Get on Board, fuentes configuradas de Greenhouse y Lever). Get on Board consulta hasta dos páginas de las categorías seleccionadas de operaciones, soporte y otras relacionadas. |
+| Accesos a Computrabajo, Indeed, LinkedIn y Bumeran | Implementados como **búsquedas externas abiertas por el usuario**, no como integraciones automáticas de vacantes |
 | Resultados con URL original y fecha publicada | Implementado cuando la fuente aporta los datos |
 | Filtro obligatorio de anuncios en español | Implementado en el backend y la interfaz; clasificador conservador, sujeto a revisión manual |
 | Filtros de antigüedad y elegibilidad | Implementación básica |
@@ -56,3 +57,9 @@ Herramienta privada para revisar vacantes reales **redactadas principalmente en 
 
 No publica vacantes propias ni usa `JobPosting` para indexar anuncios ajenos; es un panel personal.
 No navega cuentas externas automáticamente, no evita restricciones de portales y no envía postulaciones masivamente.
+
+## Portales argentinos sin integración automática
+
+En la sección **Portales argentinos y latinoamericanos** podés elegir Administración, Procesos, Customer Success o Soporte Funcional y abrir Computrabajo o Indeed en una búsqueda correspondiente. LinkedIn y Bumeran se abren en sus buscadores oficiales. Las publicaciones de esos cuatro portales **no se importan automáticamente** a Radar Laboral: revisar personalmente que la oferta siga abierta, esté escrita en español, no exija inglés y admita trabajo remoto desde Argentina o modalidad híbrida en Mar del Plata.
+
+El motor automático de Get on Board usa su API pública documentada; no existe una conexión aprobada de Radar Laboral con las APIs de búsqueda de empleo de Computrabajo, LinkedIn, Indeed ni Bumeran. No se utilizan técnicas para evadir sus controles de acceso. Para obtener datos de esas plataformas dentro de Radar Laboral se necesitaría una API autorizada o una integración aprobada.
