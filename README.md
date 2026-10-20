@@ -3,7 +3,7 @@
 **Aplicación:** https://agustinarodriguez-po.github.io/radar-laboral/  
 **Backend:** Supabase, Edge Function `buscar-ofertas`.
 
-Herramienta privada para revisar vacantes reales, analizar términos ATS sin inventar experiencia, preparar postulaciones y registrar manualmente las enviadas.
+Herramienta privada para revisar vacantes reales **redactadas principalmente en español y sin inglés obligatorio**, analizar términos ATS sin inventar experiencia, preparar postulaciones y registrar manualmente las enviadas. Las publicaciones en inglés, portugués o de idioma no confirmado se ocultan.
 
 ## Estado real del MVP
 
@@ -12,6 +12,7 @@ Herramienta privada para revisar vacantes reales, analizar términos ATS sin inv
 | Inicio de sesión con Supabase Auth | Implementado |
 | Consulta bajo demanda a APIs | Implementada (Jobicy, Arbeitnow, Get on Board, fuentes configuradas de Greenhouse y Lever) |
 | Resultados con URL original y fecha publicada | Implementado cuando la fuente aporta los datos |
+| Filtro obligatorio de anuncios en español | Implementado en el backend y la interfaz; clasificador conservador, sujeto a revisión manual |
 | Filtros de antigüedad y elegibilidad | Implementación básica |
 | Distinción entre remoto desde Argentina confirmado y pendiente | Implementado con heurísticas conservadoras; revisar siempre el anuncio |
 | Habilidades ATS con evidencia confirmada por la persona | Implementado a nivel de términos; no verifica experiencia con terceros |
