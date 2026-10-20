@@ -48,6 +48,14 @@ const interviewByRole={
   '¿Cómo diferenciarías atención personalizada de un puesto de alto volumen de consultas?'
  ]
 };
+export function extractJDKeywords(text=''){
+ const terms=['Excel','Google Sheets','Jira','Confluence','Power BI','SAP','SQL','API','CRM','back office','administración','facturación','liquidaciones','cobranzas','cuentas corrientes','conciliación','historias de usuario','documentación funcional','soporte funcional','atención al cliente','customer success','onboarding','gestión de clientes','mejora continua','procesos','operaciones','reportes','análisis de datos'];
+ const plain=normalizeText(text);
+ return terms.filter(term=>{
+  const phrase=normalizeText(term).replace(/[.*+?^$()|[\]{}\\]/g,'\\export function evaluateJob(job={},profile={},evidence=[],cvs=[]){');
+  return new RegExp('(?:^|[^a-z])'+phrase+'(?:$|[^a-z])').test(plain);
+ }).slice(0,30);
+}
 export function evaluateJob(job={},profile={},evidence=[],cvs=[]){
  const title=String(job.title||'Puesto no informado');
  const company=String(job.company||'Empresa no informada');
