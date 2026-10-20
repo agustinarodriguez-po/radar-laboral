@@ -236,6 +236,26 @@ function adviceHTML(job){
  '<h4>Ideas para tu carta de presentación (sin redactarla)</h4>'+ul(advice.coverLetterIdeas)+
  '<p class="small"><strong>Tu carta la escribís vos.</strong> Este asistente solo propone puntos para considerar y no genera cartas completas.</p></section>';
 }
+function renderSourceDiagnostics(){
+ const list=$('sourceReportList'),rows=runs[0]?.source_summary?.sources;
+ if(!Array.isArray(rows)||!rows.length){
+  list.textContent='Todavía no hay desglose por portal. Ejecutá una búsqueda nueva para generarlo.';
+  return;
+ }
+ list.innerHTML=rows.map(r=>{
+  const connected=r.status==='ok'||r.status==='fulfilled';
+  const consulted=Number(r.consulted??r.count??0);
+  const detailed=Number.isInteger(r.spanish);
+  const outcome=detailed?
+    '<span class="tag '+(r.spanish?'ok':'warn')+'">'+Number(r.spanish)+' avisos en español</span>'+
+    '<span class="tag">'+(Number(r.englishOrRequired||0)+Number(r.languageUnconfirmed||0))+' excluidos por idioma</span>'+
+    '<span class="tag">'+Number(r.new||0)+' nuevos, '+Number(r.updated||0)+' actualizados</span>':
+    '<span class="tag warn">Detalle disponible en la próxima búsqueda</span>';
+  return '<div class="source-report-entry"><strong>'+html(String(r.name||'Fuente'))+'</strong><span class="tag '+(connected?'ok':'bad')+'">'+(connected?'Conectada':'Error de conexión')+'</span><span class="tag">'+consulted+' consultadas</span>'+outcome+'</div>';
+ }).join('');
+ const errors=runs[0]?.source_summary?.errors||[];
+ if(errors.length)list.insertAdjacentHTML('beforeend','<p class="small">Incidencias: '+html(errors.join(' | '))+'</p>');
+}
 function render(){
  // El idioma español es obligatorio. Ni "Todas" ni la búsqueda por texto pueden mostrar avisos de otro idioma.
  const spanishJobs=jobs.filter(j=>j.language_status==='confirmed');
@@ -259,6 +279,7 @@ function render(){
  $('approved').textContent=approvals.length;
  $('savedTotal').textContent=pipeline.filter(p=>['saved','reviewing'].includes(p.stage)).length;
  $('resultsSummary').textContent=spanishJobs.length?('Mostrando '+visible.length+' de '+spanishJobs.length+' ofertas en español. '+fresh.length+' publicadas en las últimas 24 horas; '+disabled+' incompatibles por ubicación. '+(jobs.length-spanishJobs.length)+' anuncios en otros idiomas o sin idioma confirmado están ocultos. La fecha de verificación NO equivale a la de publicación.'): 'No hay anuncios en español confirmados con estos datos. Hacé clic en «Iniciar búsqueda de hoy». Los avisos en inglés o de idioma desconocido se ocultan, no se inventan resultados.';
+ renderSourceDiagnostics();
  $('lastSearch').textContent=runs.length?('Última búsqueda: '+fmt(runs[0].started_at)+' · '+(runs[0].finished_at?'Completada · '+runs[0].found_count+' registros nuevos o actualizados':'En ejecución o incompleta')+(runs[0].source_summary?.errors?.length?' · Algunas fuentes fallaron':'') ):'Todavía no se ejecutó una búsqueda registrada. Usá el botón «Iniciar búsqueda de hoy».';
  $('jobList').innerHTML=visible.map(j=>{
   const h=j.published_at&&(Date.now()-new Date(j.published_at).getTime())/36e5;
